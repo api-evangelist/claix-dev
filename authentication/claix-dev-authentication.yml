@@ -1,0 +1,63 @@
+generated: '2026-09-19'
+method: searched
+source: openapi/claix-dev-openapi.yml
+docs: https://www.claix.dev/documentation/excel-to-json
+docs_also:
+  - https://www.claix.dev/documentation/sdks
+  - https://www.claix.dev/documentation/mcp
+  - https://www.claix.dev/documentation/a2a
+summary:
+  types:
+  - apiKey
+  - http
+  api_key_in:
+  - header
+  one_credential_three_surfaces: >-
+    A single secret API key, issued in the dashboard (Workspace > API Keys), authenticates the
+    REST routes, the MCP server (x-api-key header, or api_key tool argument) and the A2A JSON-RPC
+    endpoint (x-api-key or Bearer). The agent card, openapi.yaml, llms.txt and MCP tools/list are
+    public and need no key.
+  key_format: >-
+    Not published in the spec. The SDK docs show the placeholder "ck_..." (CLAIX_API_KEY=ck_...)
+    while the MCP tool schema example reads "claix_sk_abc123..."; treated as unknown rather than
+    asserted.
+  precedence: x-api-key takes priority when both headers are sent (spec + docs).
+  scope: >-
+    Key -> one workspace/account. Every schema, persisted document and knowledge space is owned by
+    the key's account; ids that belong to another account return 404, not 403.
+  validation: >-
+    Before any file is processed the server checks that the key exists and is active and that the
+    account is not suspended; failure is 401 with the {error, detalle} envelope and nothing is
+    billed.
+  no_oauth: No OAuth 2.0 / OIDC; /.well-known/oauth-authorization-server, oauth-protected-resource and openid-configuration all 404 (well-known/claix-dev-well-known.yml).
+  client_side: >-
+    The docs forbid calling the API from an end-user browser ("requires a secret API key ...
+    handle with the same care as a database password"); the embeddable widget exists precisely so
+    the key stays server-side (components/claix-dev-components.yml).
+  env_var: CLAIX_API_KEY (Python SDK)
+schemes:
+- name: ApiKeyAuth
+  type: apiKey
+  in: header
+  parameter: x-api-key
+  description: Secret server API key. Takes priority over Authorization when both headers are sent. (Spec text, Spanish - "API key secreta de servidor. Tiene prioridad sobre Authorization si se envían ambos headers.")
+  recommended: true
+  surfaces: [rest, mcp, a2a]
+  sources:
+  - openapi/claix-dev-openapi.yml
+  - https://www.claix.dev/documentation/excel-to-json
+- name: BearerAuth
+  type: http
+  scheme: bearer
+  description: Alternative way to send the same API key, as a Bearer token in Authorization. (Spec text - "Forma alternativa de enviar la API key como Bearer token.")
+  surfaces: [rest, a2a]
+  sources:
+  - openapi/claix-dev-openapi.yml
+  - https://www.claix.dev/documentation/a2a
+mcp_specific:
+  header: x-api-key
+  tool_argument_fallback: api_key (string, minLength 8) on every tool, for clients that cannot set headers
+  smithery: registry config field APIKEY mapped to the x-api-key header (x-to)
+a2a_specific:
+  error_on_missing_key: 'HTTP 401, JSON-RPC {code: -32001, message: "Unauthorized: send x-api-key or Authorization: Bearer."}'
+  observed: '2026-09-19 anonymous POST https://www.claix.dev/a2a -> 401 with exactly that body'

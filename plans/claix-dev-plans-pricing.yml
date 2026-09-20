@@ -1,0 +1,62 @@
+specification: API Commons Plans
+specificationVersion: '0.1'
+schema: https://raw.githubusercontent.com/api-evangelist/interface-research/main/schema/api-commons.yml#/$defs/Plans
+provider: Claix
+providerId: claix-dev
+created: '2026-09-19'
+modified: '2026-09-19'
+generated: '2026-09-19'
+method: searched
+sources:
+  - https://www.claix.dev/llms.txt
+  - https://www.claix.dev/blog/free-document-processing-api
+  - https://www.claix.dev/blog/pay-as-you-go-ai-document-processing-api
+source_note: >-
+  There is no /pricing page (404). Prices are published verbatim in the provider's own llms.txt
+  ("Pricing (pay-as-you-go)" and the endpoint table) and in the two blog posts above; the
+  homepage is a JS-rendered marketing page whose pricing section did not render server-side.
+tags: [Document Processing, Data Extraction, AI Agents, Pay-as-you-go]
+description: >-
+  Pay-as-you-go, per successful call, in euros. No tiers, no subscriptions, no seat pricing. Two
+  modes: Claix Managed AI (flat per-document prices after 100 free successful calls) and BYOK
+  (bring your own OpenAI/Gemini/Claude/Grok key - no Claix processing fee, you pay the provider's
+  tokens). Failed calls (auth, validation, 5xx) are not billed. Enterprise contact: info@claix.dev.
+plan_count: 2
+plans:
+  - id: claix-managed-ai
+    name: Claix Managed AI (pay-as-you-go)
+    type: usage-based
+    currency: EUR
+    billing_period: usage
+    description: Default mode; Claix selects and runs the AI provider (currently Google Gemini primary).
+    free_tier:
+      included: 100 successful (HTTP 200) calls
+      note: Failed auth / validation / 5xx are not billed and do not consume the allowance.
+    entries:
+      - {label: 'Excel/CSV -> JSON', name: excel_json, type: metered, metric: successful document, price: '€0.15', operation: excelToJson}
+      - {label: 'PDF -> JSON', name: pdf_json, type: metered, metric: successful document, price: '€0.15', operation: pdfToJson}
+      - {label: 'Doc -> JSON', name: doc_json, type: metered, metric: successful document, price: '€0.15', operation: docToJson}
+      - {label: 'Img -> JSON', name: img_json, type: metered, metric: successful image, price: '€0.10', operation: imgToJson}
+      - {label: 'Txt/HTML/XML -> JSON', name: txt_json, type: metered, metric: successful call, price: '€0.10', operation: txtToJson}
+      - {label: 'Context window Q&A (up to 5 questions)', name: window_context, type: metered, metric: successful call, price: '€0.03', operation: documentContextAsk, note: 'llms.txt: "up to 5 questions -> €0.006 per query"'}
+      - {label: 'JSON -> Excel', name: json_excel, type: metered, price: null, operation: jsonToExcel, note: 'Not listed in public pricing table (llms.txt says so explicitly).'}
+      - {label: 'List / create / delete schema', name: schemas, type: free, price: '€0', operation: 'listSchemas, createSchema, deleteSchema'}
+      - {label: 'Get / delete persisted document, create / delete space', name: context_management, type: free, price: '€0', operation: 'getDocument, deleteDocument, createSpace, deleteSpace', note: 'Documented as "Free call" on /documentation/mcp.'}
+    limits:
+      rate: see rate-limits/claix-dev-rate-limits.yml
+  - id: claix-byok
+    name: Native BYOK (Bring Your Own Key)
+    type: free
+    currency: EUR
+    billing_period: usage
+    description: >-
+      Connect your own OpenAI, Gemini, Claude or Grok key; Claix charges no document-processing fee
+      and you pay only that provider's token usage. Schemas, structured JSON, document context and
+      automation-ready responses are still provided by Claix.
+    entries:
+      - {label: 'Claix processing fee', name: byok_processing, type: free, price: '€0'}
+      - {label: 'AI provider tokens', name: provider_tokens, type: pass-through, price: 'provider rate'}
+    source: https://www.claix.dev/blog/free-document-processing-api
+elements:
+  - name: Embeddable widget - free, unlimited embed use
+  - name: MCP server, A2A agent and Python SDK included at no extra charge (same key)

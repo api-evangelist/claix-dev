@@ -1,0 +1,79 @@
+generated: '2026-09-19'
+method: searched
+source: >-
+  https://www.claix.dev/openapi.yaml, https://www.claix.dev/.well-known/agent-card.json,
+  https://www.claix.dev/mcp (live initialize + tools/list), https://www.claix.dev/documentation/a2a,
+  https://www.claix.dev/dpa, and the /.well-known/ probe in well-known/claix-dev-well-known.yml.
+standards:
+  - id: openapi-3.0
+    conforms: true
+    evidence: >-
+      Provider serves OpenAPI 3.0.3 at https://www.claix.dev/openapi.yaml (200, text/yaml, 91,140
+      bytes, last-modified 2026-09-19, info.version 1.8.2, 20 operations / 36 schemas), parsed and
+      saved verbatim to openapi/_original/claix-dev-openapi.yaml.
+  - id: a2a
+    conforms: true
+    evidence: >-
+      Agent Card at /.well-known/agent-card.json (and legacy agent.json) grades conformant against
+      A2A 1.0.0 (capabilities object, protocolVersion "0.3", skills array of 20); JSON-RPC endpoint
+      https://www.claix.dev/a2a answers 401 -32001 anonymously (live, auth-gated). See a2a/claix-dev-a2a.yml.
+  - id: mcp
+    conforms: true
+    evidence: >-
+      Hosted MCP server at https://www.claix.dev/mcp: initialize returns protocolVersion 2025-06-18,
+      serverInfo claix 1.7.0; tools/list returns 17 tools with inputSchema/outputSchema/annotations
+      (Streamable HTTP + legacy SSE). See mcp/claix-dev-mcp.yml.
+  - id: json-rpc-2.0
+    conforms: true
+    evidence: Both the A2A and MCP surfaces are JSON-RPC 2.0 envelopes (documented and observed).
+  - id: apikey-header-auth
+    conforms: true
+    evidence: >-
+      securitySchemes ApiKeyAuth (header x-api-key) and BearerAuth (http bearer carrying the same
+      key); root security requires one of them. Same key across REST, MCP and A2A.
+  - id: oauth2
+    conforms: false
+    evidence: No OAuth flow documented; /.well-known/oauth-authorization-server and /.well-known/oauth-protected-resource return 404 on www.claix.dev (apex 308s there).
+  - id: oidc-discovery
+    conforms: false
+    evidence: /.well-known/openid-configuration returns 404.
+  - id: rfc9116-security-txt
+    conforms: false
+    evidence: /.well-known/security.txt and /security.txt both 404 on www.claix.dev.
+  - id: rfc9457-problem-details
+    conforms: false
+    evidence: >-
+      Every 4xx/5xx in the spec is application/json with a custom {error, detalle} envelope
+      (components.schemas.ErrorResponse); no application/problem+json anywhere. See errors/claix-dev-problem-types.yml.
+  - id: rfc8594-sunset-header
+    conforms: false
+    evidence: No Deprecation/Sunset headers, no deprecation policy page, no operation flagged deprecated in the spec. See lifecycle/claix-dev-lifecycle.yml.
+  - id: rfc6585-429-retry-after
+    conforms: true
+    scope: A2A endpoint only
+    evidence: >-
+      https://www.claix.dev/documentation/a2a section 2/7: "Limit: 60 requests per minute per API
+      key (HTTP 429, Retry-After header)", JSON-RPC -32000. Not documented for the REST routes.
+  - id: gdpr-art28-dpa
+    conforms: true
+    evidence: >-
+      Published Data Processing Addendum "pursuant to Article 28 of Regulation (EU) 2016/679, Version
+      1.1" at https://www.claix.dev/dpa (200) with Annex C subprocessor table, 48-hour breach
+      notification aim and SCC/DPF transfer bases. A published legal instrument, not a certification.
+  - id: idempotency-key
+    conforms: false
+    evidence: No Idempotency-Key or equivalent replay-protection header on any write; see conventions/claix-dev-conventions.yml.
+  - id: pagination
+    conforms: false
+    evidence: The only list operation (listSchemas) returns the full set; no page/cursor parameters in the spec.
+domain_standard:
+  declared: false
+  note: >-
+    Document-extraction / document-intelligence has no sector interchange standard the scorer
+    recognises (no SCIM/OData/OpenRTB/HL7/ISO-20022 shape applies). Reward-only check; nothing
+    asserted.
+certifications_published: []
+certifications_note: >-
+  No SOC 2 / ISO 27001 / PCI claim anywhere on the site (no /security, /trust or /compliance page;
+  all 404). llms.txt claims "EU processing, GDPR/DPA, zero file retention, no training on customer
+  data" - posture statements, not audited certifications.

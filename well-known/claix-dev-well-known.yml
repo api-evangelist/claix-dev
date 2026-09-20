@@ -1,0 +1,81 @@
+generated: '2026-09-19'
+method: probed
+description: >-
+  Results of probing the /.well-known/ discovery surface on every host the record knows: the
+  registrable domain (claix.dev - which is also the API host, the MCP host and the A2A host, all
+  paths under one origin), its www alias (where every apex request lands via 308), and the three
+  subdomains the pipeline would normally expect (api., docs., mcp.) which do not resolve. Two real
+  documents are served, both on www.claix.dev: the A2A agent card (canonical and legacy paths,
+  byte-identical) and an MCP server card at /.well-known/mcp/server-card.json. No security.txt,
+  no OIDC/OAuth metadata, no api-catalog. 404 bodies are the site's HTML 404 page.
+hosts:
+- host: https://www.claix.dev
+  role: website, docs, API (/api), MCP (/mcp), A2A (/a2a)
+  documents:
+  - path: /.well-known/agent-card.json
+    status: 200
+    type: application/json
+    file: ../a2a/claix-dev-agent-card.json
+  - path: /.well-known/agent.json
+    status: 200
+    type: application/json
+    note: legacy A2A path; byte-identical to agent-card.json, not saved twice
+  - path: /.well-known/mcp/server-card.json
+    status: 200
+    type: application/json
+    file: claix-dev-mcp-server-card.json
+  - path: /.well-known/security.txt
+    status: 404
+  - path: /security.txt
+    status: 404
+  - path: /.well-known/openid-configuration
+    status: 404
+  - path: /.well-known/oauth-authorization-server
+    status: 404
+  - path: /.well-known/oauth-protected-resource
+    status: 404
+  - path: /.well-known/api-catalog
+    status: 404
+  - path: /.well-known/ai-plugin.json
+    status: 404
+  - path: /.well-known/mcp.json
+    status: 404
+  - path: /apis.json
+    status: 404
+- host: https://claix.dev
+  role: apex; every path answers 308 to the same path on www.claix.dev
+  documents:
+  - path: /.well-known/agent-card.json
+    status: 308
+    note: Location https://www.claix.dev/.well-known/agent-card.json
+  - path: /.well-known/agent.json
+    status: 308
+  - path: /.well-known/mcp/server-card.json
+    status: 308
+  - path: /.well-known/security.txt
+    status: 308
+    note: redirect target 404
+  - path: /.well-known/openid-configuration
+    status: 308
+    note: redirect target 404
+  - path: /.well-known/oauth-authorization-server
+    status: 308
+    note: redirect target 404
+  - path: /.well-known/oauth-protected-resource
+    status: 308
+    note: redirect target 404
+  - path: /.well-known/api-catalog
+    status: 308
+    note: redirect target 404
+  - path: /.well-known/ai-plugin.json
+    status: 308
+    note: redirect target 404
+- host: https://api.claix.dev
+  documents: []
+  note: does not resolve (curl 6, 2026-09-19)
+- host: https://docs.claix.dev
+  documents: []
+  note: does not resolve (curl 6, 2026-09-19)
+- host: https://mcp.claix.dev
+  documents: []
+  note: does not resolve (curl 6, 2026-09-19); the MCP server lives at www.claix.dev/mcp

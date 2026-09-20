@@ -1,0 +1,93 @@
+generated: '2026-09-19'
+method: derived
+source: >-
+  Derived from the 36 components.schemas in openapi/claix-dev-openapi.yml (Claix API 1.8.2) - the
+  id-reference fields schema_id, document_id and space_id that thread through the request and
+  response schemas - plus the ownership rules stated on the docs pages (every object belongs to the
+  API key's account/workspace; https://www.claix.dev/documentation/workspace-members).
+docs: https://www.claix.dev/documentation/schemas/create-schema
+notation: >-
+  All identifiers are UUIDs. Relationships use has_one / has_many / belongs_to with the reference
+  field in `via`; direction is from the entity that owns the reference field. There is no
+  cross-account access: a 404 is returned for any id that exists but belongs to another account.
+identifiers:
+  format: uuid
+  examples_in_spec: [schema_id, document_id, space_id]
+  note: No prefixed ids (no sch_/doc_ style); plain UUID v4 strings.
+entities:
+  - name: Workspace
+    aka: [account, API key account]
+    schema: null
+    domain: tenancy
+    description: >-
+      The tenant. One Owner plus invited Members share the same schemas, widgets, logs and API keys.
+      Not exposed as an API resource; it is the scope every API key resolves to.
+    fields: [owner, 'members[]', 'api_keys[]', billing_details]
+  - name: ApiKey
+    schema: null
+    domain: tenancy
+    description: Secret server credential (x-api-key / Bearer); authenticates REST, MCP and A2A. Created in the dashboard, not via API.
+  - name: Schema
+    schema: SchemaItem
+    domain: core
+    id_field: id
+    description: >-
+      Customer-defined output shape. type selects which extraction endpoint may use it
+      (excel-json | json-excel | pdf-json | doc-json | img-json | txt-json).
+    fields: [id, name, type, schema_definition, is_agent_mode, agent_definition, resumen_agent, window_context, window_time, created_at]
+    operations: [listSchemas, createSchema, deleteSchema]
+  - name: ExtractionResult
+    schema: [ExcelJsonSuccessResponse, PdfJsonSuccessResponse, DocJsonSuccessResponse, ImgJsonSuccessResponse, AgentExcelJsonSuccessResponse, AgentPdfJsonSuccessResponse, AgentDocJsonSuccessResponse, AgentImgJsonSuccessResponse]
+    domain: core
+    description: >-
+      Synchronous response of an extraction call: data[] shaped by the schema, schema_utilizado
+      (schema name), total_registros / total_filas_procesadas, mapa_columnas (Excel), agent_data
+      (Agent mode), and document_id when the schema has window_context enabled. Not addressable
+      after the response unless persisted as a Document.
+    operations: [excelToJson, pdfToJson, docToJson, imgToJson, txtToJson, agentExcelToJson, agentPdfToJson, agentDocToJson, agentImgToJson, agentTxtToJson]
+  - name: Document
+    aka: [persisted document, context window document]
+    schema: GetDocumentSuccessResponse
+    domain: context
+    id_field: document_id
+    description: >-
+      The markdown/raw content of an extracted file kept in Claix memory because the schema had
+      window_context enabled. Expires after the schema's window_time (5-1440 minutes or infinity).
+    fields: [document_id, file_name, schema_id, processed_at, content]
+    operations: [getDocument, documentContextAsk, deleteDocument]
+  - name: Space
+    aka: [knowledge space]
+    schema: CreateSpaceSuccessResponse.space
+    domain: context
+    id_field: space_id
+    description: Named group of persisted Documents that can be queried together.
+    fields: [space_id, name, created_at]
+    operations: [createSpace, spaceContextAsk, deleteSpace]
+  - name: Answer
+    schema: [WindowContextSuccessResponse, SpaceContextSuccessResponse]
+    domain: context
+    description: Q&A response - user_ask[] echoes the questions, ia_response[] is aligned 1:1 and is null where the fact is absent. Not persisted.
+    operations: [documentContextAsk, spaceContextAsk]
+  - name: ExcelExport
+    schema: JsonExcelMultipartRequest / binary .xlsx response
+    domain: core
+    description: One-shot conversion of JSON records to an .xlsx workbook through a json-excel Schema; nothing persisted.
+    operations: [jsonToExcel]
+relationships:
+  - {from: Workspace, to: ApiKey, type: has_many}
+  - {from: Workspace, to: Schema, type: has_many, note: listSchemas returns every schema on the key's account}
+  - {from: Workspace, to: Space, type: has_many}
+  - {from: Workspace, to: Document, type: has_many}
+  - {from: Schema, to: Workspace, type: belongs_to}
+  - {from: Schema, to: Document, type: has_many, via: schema_id, note: only when the schema has window_context enabled}
+  - {from: Document, to: Schema, type: belongs_to, via: schema_id}
+  - {from: Document, to: Space, type: belongs_to, via: space_id, optional: true, note: space_id is passed on the extraction request that creates the document}
+  - {from: Space, to: Document, type: has_many, via: space_id}
+  - {from: ExtractionResult, to: Schema, type: belongs_to, via: schema_id (request)}
+  - {from: ExtractionResult, to: Document, type: has_one, via: document_id (response), optional: true}
+  - {from: Answer, to: Document, type: belongs_to, via: document_id (path)}
+  - {from: Answer, to: Space, type: belongs_to, via: space_id (path)}
+lifecycle_notes:
+  - Documents expire on their own (window_time); Schemas and Spaces persist until deleted.
+  - Deletes are irreversible (docs); the effect of deleteSpace on member Documents is not documented.
+render: null

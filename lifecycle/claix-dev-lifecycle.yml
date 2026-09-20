@@ -1,0 +1,50 @@
+generated: '2026-09-19'
+method: searched
+source: >-
+  https://www.claix.dev/openapi.yaml (info.version, Last-Modified header), https://www.claix.dev/terms
+  (3.3 Service Availability, 1.x change notice), https://www.claix.dev/dpa (6.3 subprocessor notice),
+  https://www.claix.dev/documentation/mcp, probes of status.claix.dev, /status and /changelog.
+versioning:
+  scheme: unversioned-path
+  spec_declared: 1.8.2
+  mechanism: null
+  notes: >-
+    No version segment in any path and no version header; the only version identifier is
+    info.version in openapi.yaml (1.8.2, spec Last-Modified Sat 19 Sep 2026 20:42:27 GMT). The
+    Python SDK and its docs pin themselves to "OpenAPI 1.8.2", so the number does track releases.
+    The MCP server reports three different versions depending on where you look (initialize 1.7.0,
+    docs page 1.9.0, /.well-known/mcp/server-card.json 1.5.0).
+deprecation:
+  policy_url: null
+  sunset_header: false
+  deprecation_header: false
+  notes: >-
+    No deprecation policy, no Sunset/Deprecation headers, no operation flagged deprecated:true in
+    the spec. The Terms (section 1) commit to at least thirty (30) calendar days' prior notice of
+    material changes by email/dashboard, "except where a shorter notice period is necessary to
+    address security, legal compliance, fraud, abuse, or an urgent operational issue"; the DPA
+    (6.3) commits to fifteen (15) calendar days' notice before a subprocessor change. Neither is an
+    API deprecation policy.
+sla:
+  url: https://www.claix.dev/terms
+  public_uptime_target: null
+  notes: >-
+    Terms 3.3: the Service is provided "as available"; "Any availability target, maintenance
+    window, uptime percentage, support response target, or service-level commitment is binding
+    only where expressly included in a separate written agreement signed by Claix."
+status_page: null
+status_page_probes:
+  - {url: 'https://status.claix.dev/', result: 'does not resolve'}
+  - {url: 'https://www.claix.dev/status', status: 404}
+changelog: null
+changelog_probes:
+  - {url: 'https://www.claix.dev/changelog', status: 404}
+changelog_note: >-
+  No dated changelog or feed; the blog (https://www.claix.dev/blog) carries launch posts
+  (mcp-server-claix, claix-a2a-agent-to-agent-document-intelligence-api, knowledge-spaces-ai-agents)
+  that serve as the only release narrative.
+support:
+  email: info@claix.dev
+  page: null
+deprecated_products: []
+deprecated_operations: []

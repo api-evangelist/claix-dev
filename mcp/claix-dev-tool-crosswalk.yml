@@ -1,0 +1,457 @@
+generated: '2026-09-19'
+method: derived
+source: 'Derived by binding the live MCP tools/list (mcp/claix-dev-mcp-tools-list.json, 17 tools, HTTP 200 anonymous)
+  and the 20 A2A skills in a2a/claix-dev-agent-card.json to the 20 operations in openapi/claix-dev-openapi.yml (Claix
+  API 1.8.2). The A2A bindings are the provider''s own: the card''s openapi-skills extension carries openApiOperationId/openApiPath/openApiMethod
+  per skill and every one was checked against the spec (method + path + operationId all match). MCP bindings come
+  from the tool descriptions and the docs table.'
+purpose: Make the MCP tool and the A2A skill first-class discovery units bound to the REST operation that backs
+  them, so an agent can read the operation's parameters/requestBody as the tool's real input contract. Claix is
+  unusual in that all three surfaces (REST, MCP, A2A) are projections of ONE 20-operation contract and the provider
+  publishes the crosswalk itself.
+surfaces:
+  rest_openapi: 'openapi/claix-dev-openapi.yml  # verbatim from https://www.claix.dev/openapi.yaml, 20 operations,
+    36 schemas; servers[] https://claix.dev/api'
+  mcp: 'https://www.claix.dev/mcp  # tools/list answers anonymously (200); tools/call needs x-api-key'
+  a2a: 'https://www.claix.dev/a2a  # card public; POST needs x-api-key (401 -32001 anonymous)'
+  graphql: null
+crosswalk:
+- tool: claix.schemas.list
+  surface: mcp
+  category: schemas
+  rest:
+  - listSchemas
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.schemas.create
+  surface: mcp
+  category: schemas
+  rest:
+  - createSchema
+  binding: rest
+  confidence: high
+  input_fields:
+  - api_key
+  - name
+  - type
+  - schema_definition
+  - is_agent_mode
+  - agent_definition
+  - resumen_agent
+  - window_context
+  - window_time
+- tool: claix.schemas.delete
+  surface: mcp
+  category: schemas
+  rest:
+  - deleteSchema
+  binding: rest
+  confidence: high
+  input_fields:
+  - api_key
+  - schema_id
+- tool: claix.extract.excel
+  surface: mcp
+  category: extract
+  rest:
+  - excelToJson
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  - schema_id
+  - file_base64
+  - file_path
+  - filename
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.extract.pdf
+  surface: mcp
+  category: extract
+  rest:
+  - pdfToJson
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  - schema_id
+  - file_base64
+  - file_path
+  - filename
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.extract.doc
+  surface: mcp
+  category: extract
+  rest:
+  - docToJson
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  - schema_id
+  - file_base64
+  - file_path
+  - filename
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.extract.image
+  surface: mcp
+  category: extract
+  rest:
+  - imgToJson
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  - schema_id
+  - file_base64
+  - file_path
+  - filename
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.extract.text
+  surface: mcp
+  category: extract
+  rest:
+  - txtToJson
+  binding: rest
+  confidence: high
+  input_fields:
+  - api_key
+  - schema_id
+  - content
+- tool: claix.convert.json_to_excel
+  surface: mcp
+  category: convert
+  rest:
+  - jsonToExcel
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  - schema_id
+  - file_base64
+  - file_path
+  - filename
+  - json_data
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.agent.excel
+  surface: mcp
+  category: agent
+  rest:
+  - agentExcelToJson
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  - schema_id
+  - file_base64
+  - file_path
+  - filename
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.agent.pdf
+  surface: mcp
+  category: agent
+  rest:
+  - agentPdfToJson
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  - schema_id
+  - file_base64
+  - file_path
+  - filename
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.agent.doc
+  surface: mcp
+  category: agent
+  rest:
+  - agentDocToJson
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  - schema_id
+  - file_base64
+  - file_path
+  - filename
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.agent.image
+  surface: mcp
+  category: agent
+  rest:
+  - agentImgToJson
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  - schema_id
+  - file_base64
+  - file_path
+  - filename
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.agent.text
+  surface: mcp
+  category: agent
+  rest:
+  - agentTxtToJson
+  binding: rest
+  confidence: high
+  input_fields:
+  - api_key
+  - schema_id
+  - content
+- tool: claix.window_context.get
+  surface: mcp
+  category: window-context
+  rest:
+  - getDocument
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  - document_id
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.window_context.ask
+  surface: mcp
+  category: window-context
+  rest:
+  - documentContextAsk
+  binding: rest
+  confidence: medium
+  input_fields:
+  - api_key
+  - document_id
+  - questions
+  note: Bound by name and the docs table (section 6 of /documentation/mcp); the tool description does not quote
+    the REST path.
+- tool: claix.document.delete
+  surface: mcp
+  category: document
+  rest:
+  - deleteDocument
+  binding: rest
+  confidence: high
+  input_fields:
+  - api_key
+  - document_id
+- skill: extract-excel
+  surface: a2a
+  category: extract
+  rest:
+  - excelToJson
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: convert-json-to-excel
+  surface: a2a
+  category: convert
+  rest:
+  - jsonToExcel
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: extract-pdf
+  surface: a2a
+  category: extract
+  rest:
+  - pdfToJson
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: extract-doc
+  surface: a2a
+  category: extract
+  rest:
+  - docToJson
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: extract-img
+  surface: a2a
+  category: extract
+  rest:
+  - imgToJson
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: extract-txt
+  surface: a2a
+  category: extract
+  rest:
+  - txtToJson
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: get-document
+  surface: a2a
+  category: context
+  rest:
+  - getDocument
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: query-document
+  surface: a2a
+  category: context
+  rest:
+  - documentContextAsk
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: query-space
+  surface: a2a
+  category: context
+  rest:
+  - spaceContextAsk
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: create-space
+  surface: a2a
+  category: spaces
+  rest:
+  - createSpace
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: delete-space
+  surface: a2a
+  category: spaces
+  rest:
+  - deleteSpace
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: delete-document
+  surface: a2a
+  category: context
+  rest:
+  - deleteDocument
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: agent-extract-excel
+  surface: a2a
+  category: agent
+  rest:
+  - agentExcelToJson
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: agent-extract-pdf
+  surface: a2a
+  category: agent
+  rest:
+  - agentPdfToJson
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: agent-extract-doc
+  surface: a2a
+  category: agent
+  rest:
+  - agentDocToJson
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: agent-extract-img
+  surface: a2a
+  category: agent
+  rest:
+  - agentImgToJson
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: agent-extract-txt
+  surface: a2a
+  category: agent
+  rest:
+  - agentTxtToJson
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: list-schemas
+  surface: a2a
+  category: schemas
+  rest:
+  - listSchemas
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: create-schema
+  surface: a2a
+  category: schemas
+  rest:
+  - createSchema
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+- skill: delete-schema
+  surface: a2a
+  category: schemas
+  rest:
+  - deleteSchema
+  binding: rest
+  confidence: high
+  note: Binding declared by the provider itself in the agent card extension https://claix.dev/a2a/extensions/openapi-skills
+    (openApiOperationId/openApiPath/openApiMethod verified against the spec).
+mcp_only: []
+mcp_documented_not_served:
+- tool: claix.spaces.create
+  rest:
+  - createSpace
+  reason: Documented on /documentation/mcp section 6 but absent from the live tools/list on 2026-09-19; the REST
+    operation exists in the spec and the A2A skill for it is served.
+- tool: claix.spaces.delete
+  rest:
+  - deleteSpace
+  reason: Documented on /documentation/mcp section 6 but absent from the live tools/list on 2026-09-19; the REST
+    operation exists in the spec and the A2A skill for it is served.
+- tool: claix.space_context.ask
+  rest:
+  - spaceContextAsk
+  reason: Documented on /documentation/mcp section 6 but absent from the live tools/list on 2026-09-19; the REST
+    operation exists in the spec and the A2A skill for it is served.
+a2a_only: []
+rest_only: []
+coverage:
+  rest_operations: 20
+  mcp_tools_live: 17
+  mcp_tools_documented: 20
+  a2a_skills: 20
+  rest_covered_by_mcp_live: 17
+  rest_covered_by_a2a: 20
+  rest_uncovered: 0
+  skills_missing_extension_binding: []

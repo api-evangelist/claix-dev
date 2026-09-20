@@ -1,0 +1,58 @@
+specification: API Commons Rate Limits
+specificationVersion: '0.1'
+schema: https://raw.githubusercontent.com/api-evangelist/interface-research/main/schema/api-commons.yml#/$defs/RateLimits
+provider: Claix
+providerId: claix-dev
+created: '2026-09-19'
+modified: '2026-09-19'
+generated: '2026-09-19'
+method: searched
+sources:
+  - https://www.claix.dev/documentation/a2a
+  - https://www.claix.dev/documentation/sdks
+  - https://www.claix.dev/openapi.yaml
+tags: [Rate Limiting, Document Processing]
+description: >-
+  One published rate limit: the A2A endpoint allows 60 requests per minute per API key and answers
+  HTTP 429 with a Retry-After header (JSON-RPC error -32000). The REST routes and the MCP server
+  publish no numeric limit and no rate-limit headers; the OpenAPI declares no 429 response. The
+  official Python SDK nevertheless retries on 429, 502, 503 and 504, which is the only evidence
+  that REST throttling exists. Payload size limits are published per endpoint and are recorded as
+  policies because they are the limits an agent actually hits.
+limit_count: 1
+headers:
+  retryAfter: Retry-After
+  rateLimitLimit: null
+  rateLimitRemaining: null
+  rateLimitReset: null
+  requestId: null
+responseCodes:
+  throttled: 429
+limits:
+  - name: A2A JSON-RPC requests
+    scope: api-key
+    surface: https://www.claix.dev/a2a
+    metric: requests_per_minute
+    limit: 60
+    timeFrame: minute
+    burst: null
+    on_exhaustion: 'HTTP 429 + Retry-After; JSON-RPC error {code: -32000}'
+    source: https://www.claix.dev/documentation/a2a
+undocumented:
+  - surface: REST (https://claix.dev/api and origin-root routes)
+    note: No limit, window or header documented; no 429 in the OpenAPI. SDK retries 429/502/503/504 with 120 s default timeout.
+  - surface: MCP (https://www.claix.dev/mcp)
+    note: No limit documented; tool calls proxy to the REST routes.
+policies:
+  - name: Payload size - PDF and images
+    description: 15 MB maximum (pdfToJson, imgToJson and their agent variants); over-size returns 413.
+  - name: Payload size - documents
+    description: 10 MB maximum and 300,000 extracted characters (docToJson / agentDocToJson); 413 on either.
+  - name: Payload size - text content
+    description: 300,000 characters maximum for txtToJson / agentTxtToJson; 413 over.
+  - name: Questions per Q&A call
+    description: 1-5 questions per documentContextAsk / spaceContextAsk, 400 characters each; 400 otherwise.
+  - name: Excel sheets
+    description: Only the first sheet of a workbook is processed.
+  - name: Free allowance
+    description: First 100 successful (HTTP 200) calls are free; failed calls are not billed and do not count (see plans/).

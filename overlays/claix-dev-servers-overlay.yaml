@@ -1,0 +1,104 @@
+overlay: 1.0.0
+info:
+  title: API Evangelist servers + contact overlay for the Claix API
+  version: 1.0.0
+extends: openapi/claix-dev-openapi.yml
+x-generated: '2026-09-19'
+x-method: generated
+x-source: >-
+  openapi/claix-dev-openapi.yml (servers[] https://claix.dev/api) reconciled with the provider's
+  own documentation pages, which place eleven of the twenty operations at the origin root rather
+  than under /api: https://www.claix.dev/documentation/window-context/get-document
+  (GET https://claix.dev/get-document/{document_id}), /window-context (POST
+  https://claix.dev/document-context/{document_id}), /window-context/create-space (POST
+  https://claix.dev/create-space), /window-context/space-context (POST
+  https://claix.dev/space-context/{space_id}), the spec's own info.description (DELETE
+  https://claix.dev/delete-document/{document_id}, DELETE https://claix.dev/delete-space/{space_id})
+  and the SDK README / method map (POST https://claix.dev/agent/{pdf,excel,doc,img,txt}-json).
+x-rationale: >-
+  A client that concatenates servers[0].url + path resolves getDocument to
+  https://claix.dev/api/get-document/{id}, which is not where Claix serves it. This overlay adds an
+  operation-level servers[] to each of those eleven operations so the resolved URL matches the
+  documented one, and fills info.contact / info.termsOfService / externalDocs from the published
+  pages. It never mutates the original spec; apply with any Overlay 1.0.0 processor.
+actions:
+  - target: $.info
+    description: Add the published contact, terms and docs links.
+    update:
+      contact:
+        name: Claix
+        email: info@claix.dev
+        url: https://www.claix.dev
+      termsOfService: https://www.claix.dev/terms
+  - target: $
+    description: Add the human documentation hub as externalDocs.
+    update:
+      externalDocs:
+        description: Claix API documentation
+        url: https://www.claix.dev/documentation/excel-to-json
+  - target: $.paths['/get-document/{document_id}'].get
+    description: Documented at the origin root, not under /api.
+    update:
+      servers:
+        - url: https://claix.dev
+          description: 'Origin root (documented URL https://claix.dev/get-document/{document_id})'
+  - target: $.paths['/document-context/{document_id}'].post
+    description: Documented at the origin root, not under /api.
+    update:
+      servers:
+        - url: https://claix.dev
+          description: 'Origin root (documented URL https://claix.dev/document-context/{document_id})'
+  - target: $.paths['/delete-document/{document_id}'].delete
+    description: Documented at the origin root, not under /api.
+    update:
+      servers:
+        - url: https://claix.dev
+          description: 'Origin root (documented URL https://claix.dev/delete-document/{document_id})'
+  - target: $.paths['/create-space'].post
+    description: Documented at the origin root, not under /api.
+    update:
+      servers:
+        - url: https://claix.dev
+          description: 'Origin root (documented URL https://claix.dev/create-space)'
+  - target: $.paths['/space-context/{space_id}'].post
+    description: Documented at the origin root, not under /api.
+    update:
+      servers:
+        - url: https://claix.dev
+          description: 'Origin root (documented URL https://claix.dev/space-context/{space_id})'
+  - target: $.paths['/delete-space/{space_id}'].delete
+    description: Documented at the origin root, not under /api.
+    update:
+      servers:
+        - url: https://claix.dev
+          description: 'Origin root (documented URL https://claix.dev/delete-space/{space_id})'
+  - target: $.paths['/agent/excel-json'].post
+    description: Agent-mode routes are documented at https://claix.dev/agent/..., not /api/agent/...
+    update:
+      servers:
+        - url: https://claix.dev
+          description: 'Origin root (documented URL https://claix.dev/agent/excel-json)'
+  - target: $.paths['/agent/pdf-json'].post
+    description: Agent-mode routes are documented at https://claix.dev/agent/..., not /api/agent/...
+    update:
+      servers:
+        - url: https://claix.dev
+          description: 'Origin root (documented URL https://claix.dev/agent/pdf-json)'
+  - target: $.paths['/agent/doc-json'].post
+    description: Agent-mode routes are documented at https://claix.dev/agent/..., not /api/agent/...
+    update:
+      servers:
+        - url: https://claix.dev
+          description: 'Origin root (documented URL https://claix.dev/agent/doc-json)'
+  - target: $.paths['/agent/img-json'].post
+    description: Agent-mode routes are documented at https://claix.dev/agent/..., not /api/agent/...
+    update:
+      servers:
+        - url: https://claix.dev
+          description: 'Origin root (documented URL https://claix.dev/agent/img-json)'
+  - target: $.paths['/agent/txt-json'].post
+    description: Agent-mode routes are documented at https://claix.dev/agent/..., not /api/agent/...
+    update:
+      servers:
+        - url: https://claix.dev
+          description: 'Origin root (documented URL https://claix.dev/agent/txt-json)'

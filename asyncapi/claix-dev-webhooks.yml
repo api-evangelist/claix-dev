@@ -1,0 +1,35 @@
+generated: '2026-09-19'
+method: searched
+source: https://www.claix.dev/documentation/a2a (section 8 "Long tasks and push") and https://www.claix.dev/llms.txt (Widget section)
+api: Claix A2A Agent / Claix embeddable widget
+summary: >-
+  Claix publishes no AsyncAPI document and no event catalogue in the classic sense. It does
+  document two outbound HTTPS deliveries: (1) A2A push notifications - the standard
+  pushNotificationConfig mechanism by which a long-running A2A Task (PDF extraction, Agent mode,
+  space queries) is POSTed to the caller's URL when it reaches completed or failed; and (2) the
+  widget-router delivery, which POSTs the processed JSON from an embedded upload widget to the
+  widget owner's configured HTTPS endpoint. Neither payload is signed with a documented HMAC scheme.
+asyncapi_document: null
+delivery:
+  transport: https-post
+  content_type: application/json
+  signature: null
+  retries: not documented
+webhooks:
+- name: a2a.task.push
+  surface: a2a
+  registration:
+    inline: params.configuration.pushNotificationConfig on message/send  # {url, token?}
+    later: tasks/pushNotificationConfig/set  # {id: <taskId>, pushNotificationConfig: {url}}
+  trigger: Task reaches status.state completed or failed (initial response often returns "working")
+  payload: the A2A Task object (id, contextId, status, artifacts[]) - "Your endpoint must accept the A2A notification payload"
+  auth: optional client-supplied token in pushNotificationConfig.token
+  streaming_alternative: none (capabilities.streaming false; no message/stream)
+  docs: https://www.claix.dev/documentation/a2a
+- name: widget.result.delivery
+  surface: widget
+  registration: endpoint_url configured on the widget in the dashboard (with schema_ids[] and api_key_id)
+  trigger: an end user uploads a file through the embedded /widget/{id} iframe and extraction succeeds
+  payload: the processed JSON (extraction result); field-level shape not documented beyond "processed JSON"
+  auth: not documented
+  docs: https://www.claix.dev/llms.txt

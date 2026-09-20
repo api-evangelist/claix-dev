@@ -1,0 +1,106 @@
+generated: '2026-09-19'
+method: searched
+probe: true
+source: https://www.claix.dev/dpa
+description: >-
+  Horizontal regulatory signals HARVESTED from what Claix publishes; nothing here decides which
+  regime applies. The substance lives in the GDPR Article 28 DPA (Version 1.1) and the Privacy
+  Policy; there is no trust center, accessibility page, subprocessor page (the DPA links
+  /legal/subprocessors, which 404s), SBOM, transparency report or AI-transparency page.
+signals:
+  subprocessors:
+    url: https://www.claix.dev/dpa
+    section: 'Annex C - Authorized Subprocessors'
+    dated: '2026-09'
+    dated_note: >-
+      DPA header reads "Version 1.1 / Effective date: September 2026 / Last updated: September 2026"
+      (month precision only); the promised standalone list at https://claix.dev/legal/subprocessors
+      returns 404.
+    entries:
+      - {vendor: Supabase, purpose: 'database, authentication, Edge Functions, application infrastructure, secret management', location: 'EEA configuration where applicable'}
+      - {vendor: Amazon Web Services, purpose: 'underlying cloud infrastructure used by Supabase and/or other providers', location: 'depends on service and configured region'}
+      - {vendor: Google / Gemini, purpose: 'AI inference for Claix Managed AI (primary provider)', location: 'subject to Google service configuration and lawful transfer mechanism'}
+      - {vendor: OpenAI, purpose: 'AI inference for Claix Managed AI contingency / resilience path', location: 'subject to provider terms and lawful transfer mechanism'}
+      - {vendor: Anthropic, purpose: 'AI inference for Claix Managed AI contingency / resilience path', location: 'subject to provider terms and lawful transfer mechanism'}
+      - {vendor: Claix-operated self-hosted n8n instance, purpose: 'internal workflow automation (registration, billing, notifications, support)', location: 'Frankfurt, Germany'}
+      - {vendor: Customer-selected BYOK provider, purpose: 'AI inference when the customer enables BYOK', location: 'determined by the selected provider'}
+      - {vendor: Payment processor (unnamed), purpose: 'payment, billing, invoicing, subscriptions'}
+      - {vendor: Transactional email provider (unnamed), purpose: 'transactional communications'}
+    change_notice: >-
+      "at least fifteen (15) calendar days before the change takes effect" (DPA 6.3), with an
+      objection right and penalty-free termination of the affected feature.
+    evidence:
+      - source: https://www.claix.dev/dpa
+        http_status: 200
+        fetched: '2026-09-19'
+        quote: >-
+          "The current primary Managed AI provider is Google Gemini. Claix may maintain and use
+          alternative AI inference providers, including OpenAI and Anthropic, for service resilience,
+          continuity, provider outage handling, or material service availability issues."
+      - source: https://claix.dev/legal/subprocessors
+        http_status: 404
+        fetched: '2026-09-19'
+    note: A named subprocessor table with purpose and location columns - real substance - inside the DPA rather than on a dedicated page.
+  incident_notification:
+    url: https://www.claix.dev/dpa
+    section: '8. Personal Data Breaches'
+    stated_sla: >-
+      "without undue delay after becoming aware"; "Where reasonably practicable, Claix aims to provide
+      initial notification within forty-eight (48) hours after confirming" a breach affecting the
+      customer's data
+    evidence:
+      - source: https://www.claix.dev/dpa
+        http_status: 200
+        fetched: '2026-09-19'
+        quote: >-
+          "Claix shall notify the Customer without undue delay after becoming aware of a Personal Data
+          Breach affecting Personal Data processed on behalf of the Customer. Where reasonably
+          practicable, Claix aims to provide initial notification within forty-eight (48) hours after
+          confirming that: a Personal Data Breach has occurred; and the breach affects Personal Data
+          processed on behalf of the Customer."
+    note: A customer-facing breach-notification commitment with a stated target period, verbatim. It is an aim ("aims to"), not a hard SLA, and is recorded as written.
+  data_subject_request:
+    url: https://www.claix.dev/privacy
+    section: '10. User Rights'
+    channel: info@claix.dev
+    stated_sla: null
+    rights_named: [access, rectification, erasure, restriction, objection, portability, withdrawal of consent, not to be subject to solely automated decisions]
+    escalation: Spanish Data Protection Agency (AEPD), https://www.aepd.es/
+    controller: 'ANAYA CARBALLO GAEL, trading as Claix, Ronda Sur 203, 3o 3a Der, 28053 Madrid, Spain (NIF 51030923H)'
+    evidence:
+      - source: https://www.claix.dev/privacy
+        http_status: 200
+        fetched: '2026-09-19'
+        quote: >-
+          "Subject to applicable law, you may exercise your data-protection rights by contacting
+          info@claix.dev and specifying the right you wish to exercise."
+      - source: https://www.claix.dev/privacy/requests
+        http_status: 404
+        fetched: '2026-09-19'
+    note: An email channel with the rights enumerated and a supervisory-authority escalation path; no response-time commitment and no intake form or API. For customer content, the DPA (7) redirects requests to the customer as controller.
+  data_residency:
+    url: https://www.claix.dev/dpa
+    section: '9. International Data Transfers'
+    commitment: false
+    stated: >-
+      "Claix seeks to operate relevant core application infrastructure within the European Economic
+      Area where possible. However, Personal Data may be processed, accessed, or transferred outside
+      the EEA where necessary to provide the Service, including through Claix Managed AI providers,
+      BYOK Providers, cloud infrastructure providers..."
+    transfer_bases: [adequacy decision, Standard Contractual Clauses, EU-U.S. Data Privacy Framework where applicable]
+    evidence:
+      - source: https://www.claix.dev/dpa
+        http_status: 200
+        fetched: '2026-09-19'
+    note: >-
+      Recorded because the marketing claim "EU processing" (llms.txt) is qualified in the DPA to
+      "seeks ... where possible" with non-EEA AI inference explicitly allowed. That is a transfer
+      disclosure, not a residency control the customer can select, so no DataResidency pointer is
+      emitted.
+probed_absent:
+  - {url: 'https://www.claix.dev/accessibility', status: 404}
+  - {url: 'https://www.claix.dev/legal/subprocessors', status: 404}
+  - {url: 'https://www.claix.dev/subprocessors', status: 404}
+  - {url: 'https://www.claix.dev/security', status: 404}
+  - {url: 'https://www.claix.dev/privacy/requests', status: 404}
+  - {url: 'https://www.claix.dev/.well-known/security.txt', status: 404}

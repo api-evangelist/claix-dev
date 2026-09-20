@@ -1,0 +1,56 @@
+generated: '2026-09-19'
+method: searched
+source: https://www.claix.dev/documentation/sdks
+description: >-
+  First-party Claix client libraries. Verified against the registry metadata endpoints
+  (pypi.org/pypi/<pkg>/json and registry.npmjs.org/<pkg>) on 2026-09-19. Both packages are
+  published by Claix (PyPI author "Claix <info@claix.dev>"; npm author "Claix", homepage
+  https://www.claix.dev) from the GitHub account Gaelproodoos, which the SDK docs page names as
+  the official source. The Python SDK's first and only release (1.0.0, 2026-09-11) wraps OpenAPI
+  1.8.2 - the same info.version the live spec carries - so the SDK is current with the contract.
+  No npm package for the API itself, no Java/Go/Ruby/PHP/.NET clients.
+packages:
+  - language: python
+    registry: pypi
+    name: claix-ai
+    import_name: claix
+    url: https://pypi.org/project/claix-ai/
+    source: https://github.com/Gaelproodoos/claix-python
+    install: pip install claix-ai
+    extras: ['claix-ai[langchain]', 'claix-ai[crewai]', 'claix-ai[llamaindex]', 'claix-ai[all]']
+    official: true
+    version: 1.0.0
+    published: '2026-09-11'
+    license: MIT
+    requires_python: '>=3.10'
+    dependencies: [httpx>=0.27.0, pydantic>=2.6.0]
+    wraps_api_version: 1.8.2
+    docs: https://www.claix.dev/documentation/sdks
+    registry_status: 200
+    note: >-
+      Sync (ClaixClient) and async (AsyncClaixClient) clients; retries on 429/502/503/504; tool
+      adapters for LangChain/LangGraph, CrewAI and LlamaIndex. PyPI project_urls Source points at
+      github.com/Gaelproodoos/claix-interfaz, which returns 404 - the docs page and README point
+      at claix-python, which is live.
+  - language: typescript
+    registry: npm
+    name: n8n-nodes-claix
+    url: https://www.npmjs.com/package/n8n-nodes-claix
+    source: https://github.com/Gaelproodoos/n8n-nodes-claix
+    install: npm install n8n-nodes-claix
+    official: true
+    version: 0.2.0
+    published: '2026-08-08'
+    registry_status: 200
+    kind: n8n community node
+    note: >-
+      n8n community node for PDF/Word/Excel extraction; npm author "Claix" (info@proodoos.com),
+      homepage https://www.claix.dev. Predates the Knowledge Spaces / A2A surface (last release
+      2026-08-08 vs spec last-modified 2026-09-19).
+not_found:
+  - {registry: npm, name: claix, status: 404}
+  - {registry: npm, name: claix-ai, status: 404}
+  - {registry: npm, name: '@claix/mcp', status: 404}
+  - {registry: npm, name: claix-mcp, status: 404}
+mcp_local_package: null
+mcp_local_note: The MCP server is hosted only; no stdio package is published (see mcp/claix-dev-mcp.yml).

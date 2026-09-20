@@ -1,0 +1,32 @@
+generated: '2026-09-19'
+method: searched
+source: https://www.claix.dev/llms.txt (Widget section) and https://www.claix.dev/blog/widget-embebible-claix
+summary: >-
+  Claix ships one embeddable client-side surface: a hosted upload widget delivered as a sandboxed
+  iframe at /widget/{id}. End users pick a schema and drop a file inside the customer's own UI; the
+  processed JSON is delivered server-side to the customer's HTTPS webhook through a "widget-router",
+  so neither the API key nor the webhook URL ever reaches the browser. There is no JS component
+  library, no web components and no npm loader; the widget is configured in the dashboard.
+components:
+- family: upload-widget
+  name: Claix embeddable widget
+  url_pattern: https://www.claix.dev/widget/{id}
+  embed: iframe
+  iframe_sandbox: allow-scripts allow-same-origin allow-forms allow-popups allow-downloads
+  official: true
+  distribution: hosted (iframe only; no package)
+  pricing: free, unlimited embed use (extraction calls it triggers are billed normally)
+  configuration:
+    owner_sets: ['schema_ids[]', api_key_id, 'endpoint_url (HTTPS webhook)', colours, fonts, public name]
+    end_user_sees: [schema selector, file dropzone, branding]
+  delivery: processed JSON POSTed to the owner's endpoint_url via widget-router; never returned inside the iframe
+  docs:
+    - https://www.claix.dev/llms.txt
+    - https://www.claix.dev/blog/widget-embebible-claix
+  note: The dashboard route /widget/ is robots-disallowed, so individual widget pages are not indexed; the iframe attributes above are quoted from the provider's llms-full.txt.
+hosted_surfaces:
+- name: Claix dashboard
+  url: https://www.claix.dev/dashboard
+  detail: Workspace console - schemas, widgets, logs, API keys, members (Owner/Member roles), billing details. Sign-in via Google or email.
+  embeddable: false
+loader_libraries: []

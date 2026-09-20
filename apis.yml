@@ -1,23 +1,176 @@
 aid: claix-dev
 name: Claix
-description: 'Claix is a company surfaced via the API Evangelist harvest backlog (source: a2a-registry)
-  and added to the network as a stub for full-pipeline profiling.'
+description: >-
+  Claix is a Madrid-based B2B document intelligence API that converts PDFs, Excel/CSV, Word and
+  text documents and images into strictly typed JSON against customer-defined schemas, keeps
+  extracted documents as queryable context for AI agents (single-document and knowledge-space
+  Q&A with deterministic nulls), and exposes one 20-operation contract three ways: REST (OpenAPI
+  3.0.3), a hosted MCP server at /mcp, and a native A2A agent at /a2a with a published, conformant
+  agent card. Pay-as-you-go in euros after 100 free calls, with a free BYOK mode; official Python
+  SDK and n8n node.
+image: https://www.claix.dev/claix-logo.png
 url: https://raw.githubusercontent.com/api-evangelist/claix-dev/refs/heads/main/apis.yml
 x-type: company
 x-source: harvest:a2a-registry
-x-tier: stub
-x-tier-reason: harvest
+x-tier: profiled
+x-tier-reason: enrichment pass 2026-09-19 (local-v3; was a2a-registry harvest stub)
 specificationVersion: '0.20'
 created: '2026-09-19'
 modified: '2026-09-19'
 tags:
+- Document Processing
+- Data Extraction
+- Document Intelligence
+- PDF
+- Excel
+- OCR
+- Structured Data
+- AI Agents
+- MCP
+- A2A
+- Spain
 - Company
-apis: []
+apis:
+- aid: claix-dev:claix-document-intelligence-api
+  name: Claix Document Intelligence API
+  image: https://www.claix.dev/claix-logo.png
+  description: >-
+    REST API (Claix API 1.8.2) with 20 operations: six schema-driven conversions (Excel/CSV, PDF,
+    Word/text, image and raw text to JSON; JSON to Excel), five Agent-mode variants that add a
+    reasoning layer, schema management, and the context layer - persisted documents you can read,
+    ask and delete, and knowledge spaces you can query across. API key in x-api-key or Bearer;
+    multipart uploads in, typed JSON out.
+  humanURL: https://www.claix.dev/documentation/excel-to-json
+  baseURL: https://claix.dev/api
+  tags:
+  - Document Processing
+  - Data Extraction
+  - PDF
+  - Excel
+  - OCR
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-openapi.yml
+  - type: OpenAPI
+    url: https://www.claix.dev/openapi.yaml
+    name: Provider-hosted OpenAPI 3.0.3 (source of the local copy)
+  - type: Documentation
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: APIReference
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: Authentication
+    url: authentication/claix-dev-authentication.yml
+  - type: Conventions
+    url: conventions/claix-dev-conventions.yml
+  - type: ErrorCatalog
+    url: errors/claix-dev-problem-types.yml
+  - type: DataModel
+    url: data-model/claix-dev-data-model.yml
+  - type: Overlay
+    url: overlays/claix-dev-servers-overlay.yaml
+  - type: RateLimits
+    url: rate-limits/claix-dev-rate-limits.yml
+  - type: Plans
+    url: plans/claix-dev-plans-pricing.yml
+  - type: SDK
+    url: https://github.com/Gaelproodoos/claix-python
+- aid: claix-dev:claix-mcp-server
+  name: Claix MCP Server
+  image: https://www.claix.dev/claix-logo.png
+  description: >-
+    Hosted, remote Model Context Protocol server (Streamable HTTP and legacy SSE) exposing the
+    REST contract as dot-named tools - claix.schemas.*, claix.extract.*, claix.agent.*,
+    claix.convert.json_to_excel, claix.window_context.*, claix.document.delete - plus workflow
+    prompts and doc resources. tools/list answers anonymously; calls need the x-api-key header.
+    Listed on Smithery as info-f4xz/claix.
+  humanURL: https://www.claix.dev/documentation/mcp
+  baseURL: https://www.claix.dev/mcp
+  tags:
+  - MCP
+  - AI Agents
+  - Document Processing
+  properties:
+  - type: MCPServer
+    url: mcp/claix-dev-mcp.yml
+  - type: ToolCrosswalk
+    url: mcp/claix-dev-tool-crosswalk.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/mcp
+- aid: claix-dev:claix-a2a-agent
+  name: Claix A2A Agent
+  image: https://www.claix.dev/claix-logo.png
+  description: >-
+    Native Agent-to-Agent (A2A 0.3) JSON-RPC agent at /a2a with a public agent card at
+    /.well-known/agent-card.json declaring 20 skills, each bound by the provider to its OpenAPI
+    operation. message/send with a DataPart or TextPart, tasks/get, tasks/cancel and push
+    notifications for long tasks; same API key as REST; 60 requests/minute per key.
+  humanURL: https://www.claix.dev/documentation/a2a
+  baseURL: https://www.claix.dev/a2a
+  tags:
+  - A2A
+  - AI Agents
+  - Document Processing
+  properties:
+  - type: AgentCard
+    url: a2a/claix-dev-a2a.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/a2a
+  - type: Webhooks
+    url: asyncapi/claix-dev-webhooks.yml
 maintainers:
 - FN: Kin Lane
   email: kin@apievangelist.com
 - FN: APIs.json
   email: info@apis.io
 common:
+- type: DomainSecurity
+  url: security/claix-dev-domain-security.yml
 - type: Website
-  url: https://claix.dev/
+  url: https://www.claix.dev/
+- type: Documentation
+  url: https://www.claix.dev/documentation/excel-to-json
+- type: APIReference
+  url: https://www.claix.dev/documentation/excel-to-json
+- type: GettingStarted
+  url: https://www.claix.dev/documentation/sdks
+- type: DeveloperPortal
+  url: https://www.claix.dev/dashboard
+- type: SignUp
+  url: https://www.claix.dev/register
+- type: Login
+  url: https://www.claix.dev/login
+- type: Blog
+  url: https://www.claix.dev/blog
+- type: TermsOfService
+  url: https://www.claix.dev/terms
+- type: PrivacyPolicy
+  url: https://www.claix.dev/privacy
+- type: LLMsTxt
+  url: llms/claix-dev-llms.txt
+- type: WellKnown
+  url: well-known/claix-dev-well-known.yml
+- type: Packages
+  url: packages/claix-dev-packages.yml
+- type: SDKs
+  url: packages/claix-dev-packages.yml
+- type: Conformance
+  url: conformance/claix-dev-conformance.yml
+- type: Lifecycle
+  url: lifecycle/claix-dev-lifecycle.yml
+- type: Components
+  url: components/claix-dev-components.yml
+- type: AgentSkill
+  url: skills/_index.yml
+- type: RegulatoryPosture
+  url: regulatory/claix-dev-regulatory-posture.yml
+- type: Subprocessors
+  url: https://www.claix.dev/dpa
+- type: IncidentNotification
+  url: https://www.claix.dev/dpa
+- type: DataSubjectRequest
+  url: https://www.claix.dev/privacy
+x-enrichment:
+  date: '2026-09-19'
+  status: enriched
+  artifacts_added: 31
+  pass: local-v3

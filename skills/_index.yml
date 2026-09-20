@@ -1,0 +1,29 @@
+generated: '2026-09-19'
+method: generated
+source: >-
+  Packaged Agent Skills generated from openapi/claix-dev-openapi.yml (Claix API 1.8.2) and the
+  provider's own recommended workflows (the MCP server's workflow.* prompts and the A2A docs).
+  Every step is grounded in an operationId present verbatim in the spec; cross-cutting rules cite
+  ../conventions/, ../errors/ and ../authentication/. No provider-published skills or AGENTS.md
+  were found (github.com/Gaelproodoos/claix-python has none; searched 2026-09-19).
+skills:
+  - file: claix-dev-create-schema-and-extract.md
+    name: Create a schema and extract a document
+    api: openapi/claix-dev-openapi.yml
+    operations: [listSchemas, createSchema, pdfToJson, excelToJson, docToJson, imgToJson, txtToJson]
+  - file: claix-dev-ask-a-persisted-document.md
+    name: Persist a document and ask it questions
+    api: openapi/claix-dev-openapi.yml
+    operations: [createSchema, pdfToJson, getDocument, documentContextAsk, deleteDocument]
+  - file: claix-dev-knowledge-space-qa.md
+    name: Group documents in a knowledge space and query them together
+    api: openapi/claix-dev-openapi.yml
+    operations: [createSpace, pdfToJson, excelToJson, spaceContextAsk, deleteSpace]
+  - file: claix-dev-agent-mode-extraction.md
+    name: Extract with Agent mode reasoning
+    api: openapi/claix-dev-openapi.yml
+    operations: [createSchema, agentPdfToJson, agentExcelToJson, agentDocToJson, agentImgToJson, agentTxtToJson]
+  - file: claix-dev-export-json-to-excel.md
+    name: Export JSON records to an Excel file
+    api: openapi/claix-dev-openapi.yml
+    operations: [createSchema, jsonToExcel]

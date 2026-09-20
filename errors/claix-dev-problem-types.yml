@@ -1,0 +1,90 @@
+generated: '2026-09-19'
+method: derived
+format: custom-json
+source: >-
+  Derived from the 4xx/5xx responses declared on all 20 operations in
+  openapi/claix-dev-openapi.yml (Claix API 1.8.2); titles/remediation enriched from the per-endpoint
+  "Error codes" and "Code summary / Retry?" tables on https://www.claix.dev/documentation/excel-to-json,
+  /documentation/window-context and /documentation/schemas/create-schema, the SDK error class map on
+  /documentation/sdks, and the JSON-RPC protocol errors on /documentation/a2a.
+rfc9457: false
+envelope:
+  media_type: application/json
+  schema: ErrorResponse
+  shape: '{ "error": string, "detalle"?: string }'
+  fields:
+    - {name: error, type: string, required: true, description: 'Human-readable description of the problem (Spanish in the spec examples).'}
+    - {name: detalle, type: string, required: false, description: 'Additional technical detail, present only in some cases.'}
+  note: >-
+    Field names are Spanish (detalle). There is no machine error code field; clients branch on the
+    HTTP status. The Python SDK maps statuses to exception classes: 401 ClaixAuthenticationError,
+    404 ClaixNotFoundError, 400/413/422 ClaixValidationError, 429 ClaixRateLimitError.
+billing_note: Failed calls (auth, validation, 5xx) are not billed; only HTTP 200/201 counts toward the free tier and per-call price (llms.txt).
+problems:
+  - status: 400
+    title: Bad Request
+    retryable: false
+    meaning: >-
+      Missing or malformed input: absent file/schema_id/content, wrong multipart field names,
+      corrupt or empty file, unsupported format (legacy .doc), schema of the wrong type for the
+      endpoint, schema without Agent mode on an /agent/* route, malformed UUID in the path,
+      questions[] empty / >5 items / >400 chars, or invalid schema_definition.
+    remediation: Fix the request; do not retry unchanged.
+    declared_on: all 20 operations
+  - status: 401
+    title: Unauthorized
+    retryable: false
+    meaning: API key missing, non-existent, deactivated, or the account is suspended. Checked before any file is processed.
+    remediation: 'Send x-api-key (takes priority) or Authorization: Bearer with an active key.'
+    declared_on: all 20 operations
+  - status: 404
+    title: Not Found
+    retryable: false
+    meaning: schema_id / document_id / space_id does not exist, does not belong to the API key's account, or (documents) has expired past its window_time.
+    remediation: Re-list with listSchemas; for documents, re-extract with window_context enabled.
+    declared_on: excelToJson, jsonToExcel, pdfToJson, docToJson, imgToJson, txtToJson, getDocument, documentContextAsk, spaceContextAsk, deleteSpace, deleteDocument, agent*ToJson, deleteSchema
+  - status: 405
+    title: Method Not Allowed
+    retryable: false
+    meaning: Wrong HTTP verb (extraction/schemas are POST; getDocument GET; deleteSpace/deleteDocument DELETE; deleteSchema accepts POST or DELETE).
+    remediation: Use the verb declared for the path.
+    declared_on: all 20 operations
+  - status: 413
+    title: Payload Too Large
+    retryable: false
+    meaning: PDF or image over 15 MB; document over 10 MB or extracted text over 300,000 characters; txt-json content over 300,000 characters.
+    remediation: Split or compress the input below the published limit.
+    declared_on: pdfToJson, docToJson, imgToJson, txtToJson, agentPdfToJson, agentDocToJson, agentImgToJson, agentTxtToJson
+  - status: 422
+    title: Unprocessable Content
+    retryable: false
+    meaning: The file was read but nothing matched the schema (no column/key correspondence; no extractable data; image blurry, unfocused or badly lit).
+    remediation: Check the schema type/fields against the input; for images, resubmit a legible capture.
+    declared_on: all extraction, conversion and agent operations
+  - status: 429
+    title: Too Many Requests
+    retryable: true
+    meaning: More than 60 requests per minute per API key on the A2A endpoint (JSON-RPC error -32000). Not declared in the OpenAPI for REST routes, but the SDK retries on it.
+    remediation: Honour Retry-After, then retry.
+    declared_on: A2A endpoint (documented); REST routes undocumented
+    source: https://www.claix.dev/documentation/a2a
+  - status: 500
+    title: Internal Server Error
+    retryable: true
+    meaning: Unexpected server error.
+    remediation: Retry with backoff; contact info@claix.dev if persistent.
+    declared_on: all 20 operations
+  - status: 502
+    title: Bad Gateway (AI service failure)
+    retryable: true
+    meaning: The upstream AI inference service (Managed AI provider, or the customer's BYOK provider) failed while interpreting the file, data or agent phase.
+    remediation: Transient - retry with backoff (the docs say so explicitly; the SDK retries 502/503/504).
+    declared_on: all extraction, conversion, agent and Q&A operations
+jsonrpc_errors:
+  scope: A2A endpoint https://www.claix.dev/a2a
+  source: https://www.claix.dev/documentation/a2a section 7
+  codes:
+    - {code: -32001, http: 401, meaning: API key missing or invalid.}
+    - {code: -32000, http: 429, meaning: More than 60 requests/minute; see Retry-After.}
+    - {code: -32602, http: 400, meaning: Unknown skill id or a parameter with an invalid format.}
+  note: Business failures inside a task do not surface as JSON-RPC errors; the Task's status.state is "failed" with an error artifact.

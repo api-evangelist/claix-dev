@@ -1,0 +1,337 @@
+{
+  "serverInfo": {
+    "name": "claix",
+    "version": "1.5.0",
+    "title": "Claix",
+    "description": "Claix MCP server — AI document extraction to typed JSON. Convert PDF, Excel/CSV, Word, and images using dashboard schemas. Includes Agent mode for semantic reasoning.",
+    "websiteUrl": "https://www.claix.dev"
+  },
+  "icons": [
+    {
+      "src": "https://www.claix.dev/claix-logo.png",
+      "mimeType": "image/png",
+      "sizes": "500x500"
+    }
+  ],
+  "authentication": {
+    "required": true,
+    "schemes": ["apiKey"]
+  },
+  "instructions": "Claix MCP: extract PDF, Excel, Word, and images to typed JSON. Call claix.schemas.list first, then claix.extract.* or claix.agent.* with file_base64 and schema_id. Auth via x-api-key header.",
+  "tools": [
+    {
+      "name": "claix.schemas.list",
+      "description": "List the Claix schemas available for the authenticated account. Returns id, name, type, schema_definition, is_agent_mode, and agent_definition. Call this first whenever you need a schema_id before claix.extract.* or claix.agent.* tools.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "api_key": {
+            "type": "string",
+            "description": "Optional Claix API key if x-api-key header is not set"
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "description": "True when Claix returned a successful response" },
+          "data": { "description": "Schema list payload from Claix API" },
+          "error": { "type": "string", "description": "Error message when success is false" }
+        },
+        "required": ["success"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "claix.extract.pdf",
+      "description": "Extract structured JSON from a PDF (text or scanned, max 15 MB) using a Claix pdf-json schema. Returns a single JSON object in data[]. Use for invoices, contracts, forms, or reports.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["schema_id"],
+        "properties": {
+          "schema_id": { "type": "string", "format": "uuid", "description": "Claix schema UUID from claix.schemas.list" },
+          "file_base64": { "type": "string", "description": "Base64-encoded PDF file" },
+          "file_path": { "type": "string", "description": "HTTPS URL of the PDF" },
+          "filename": { "type": "string", "description": "Original filename with extension" },
+          "api_key": { "type": "string", "description": "Optional API key if header is not set" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": { "description": "Extracted JSON payload" },
+          "error": { "type": "string" }
+        },
+        "required": ["success"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "claix.extract.excel",
+      "description": "Extract structured JSON from an Excel (.xlsx) or CSV file using a Claix excel-json schema. Processes the first sheet only.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["schema_id"],
+        "properties": {
+          "schema_id": { "type": "string", "format": "uuid" },
+          "file_base64": { "type": "string" },
+          "api_key": { "type": "string" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {},
+          "error": { "type": "string" }
+        },
+        "required": ["success"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "claix.extract.doc",
+      "description": "Extract structured JSON from a Word document (.docx, .txt, .md, .rtf).",
+      "inputSchema": {
+        "type": "object",
+        "required": ["schema_id"],
+        "properties": {
+          "schema_id": { "type": "string", "format": "uuid" },
+          "file_base64": { "type": "string" },
+          "api_key": { "type": "string" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {},
+          "error": { "type": "string" }
+        },
+        "required": ["success"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "claix.extract.image",
+      "description": "Extract structured JSON from JPEG, PNG, WebP, HEIC, or HEIF images.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["schema_id"],
+        "properties": {
+          "schema_id": { "type": "string", "format": "uuid" },
+          "file_base64": { "type": "string" },
+          "api_key": { "type": "string" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {},
+          "error": { "type": "string" }
+        },
+        "required": ["success"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "claix.convert.json_to_excel",
+      "description": "Convert JSON to Excel .xlsx using a json-excel schema.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["schema_id"],
+        "properties": {
+          "schema_id": { "type": "string", "format": "uuid" },
+          "json_data": {},
+          "file_base64": { "type": "string" },
+          "api_key": { "type": "string" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {},
+          "error": { "type": "string" }
+        },
+        "required": ["success"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "claix.agent.pdf",
+      "description": "PDF extraction plus Agent mode semantic reasoning (agent_data). Requires is_agent_mode on schema.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["schema_id"],
+        "properties": {
+          "schema_id": { "type": "string", "format": "uuid" },
+          "file_base64": { "type": "string" },
+          "api_key": { "type": "string" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {},
+          "error": { "type": "string" }
+        },
+        "required": ["success"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "claix.agent.excel",
+      "description": "Excel/CSV extraction plus Agent mode reasoning.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["schema_id"],
+        "properties": {
+          "schema_id": { "type": "string", "format": "uuid" },
+          "file_base64": { "type": "string" },
+          "api_key": { "type": "string" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {},
+          "error": { "type": "string" }
+        },
+        "required": ["success"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "claix.agent.doc",
+      "description": "Document extraction plus Agent mode reasoning.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["schema_id"],
+        "properties": {
+          "schema_id": { "type": "string", "format": "uuid" },
+          "file_base64": { "type": "string" },
+          "api_key": { "type": "string" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {},
+          "error": { "type": "string" }
+        },
+        "required": ["success"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    },
+    {
+      "name": "claix.agent.image",
+      "description": "Image extraction plus Agent mode reasoning.",
+      "inputSchema": {
+        "type": "object",
+        "required": ["schema_id"],
+        "properties": {
+          "schema_id": { "type": "string", "format": "uuid" },
+          "file_base64": { "type": "string" },
+          "api_key": { "type": "string" }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {},
+          "error": { "type": "string" }
+        },
+        "required": ["success"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": true
+      }
+    }
+  ],
+  "prompts": [
+    {
+      "name": "workflow.discover-and-extract",
+      "description": "Discover schemas and extract JSON from a document using claix.schemas.list and claix.extract.*"
+    },
+    {
+      "name": "workflow.agent-document-analysis",
+      "description": "Run claix.agent.* extraction and reasoning on a document"
+    },
+    {
+      "name": "workflow.invoice-pdf",
+      "description": "Extract invoice fields from a PDF with claix.extract.pdf"
+    }
+  ],
+  "resources": [
+    {
+      "uri": "claix://docs/mcp",
+      "name": "mcp-documentation",
+      "description": "Claix MCP connection guide"
+    },
+    {
+      "uri": "claix://docs/openapi",
+      "name": "openapi-spec",
+      "description": "OpenAPI specification URL"
+    },
+    {
+      "uri": "claix://docs/tools",
+      "name": "tool-catalog",
+      "description": "JSON tool catalog"
+    }
+  ]
+}

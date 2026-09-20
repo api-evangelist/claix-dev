@@ -1,0 +1,144 @@
+generated: '2026-09-19'
+method: searched
+source: >-
+  https://www.claix.dev/documentation/excel-to-json (auth, request/response shape, error table),
+  /documentation/window-context, /documentation/schemas/create-schema, /documentation/a2a (rate
+  limit + Retry-After, push webhooks, task states), /documentation/mcp (destructiveHint /
+  "irreversible" on deletes, window_time), /documentation/sdks (retry policy), plus
+  openapi/claix-dev-openapi.yml (Claix API 1.8.2).
+description: >-
+  How the Claix REST API behaves across its 20 operations, and how the same contract is projected
+  through MCP and A2A. Claix is a single-tenant-per-key, server-to-server API: one secret key,
+  multipart uploads in, typed JSON out, no pagination, no idempotency header, no request-id.
+
+base_url: https://claix.dev/api
+base_url_note: >-
+  servers[] declares https://claix.dev/api, and the six conversion routes plus the three schema
+  routes live there. The spec's own description and the docs place the other eleven operations at
+  the origin root instead - https://claix.dev/get-document/{id}, /document-context/{id},
+  /delete-document/{id}, /create-space, /space-context/{id}, /delete-space/{id} and
+  /agent/{excel,pdf,doc,img,txt}-json - so a client that concatenates servers[0] + path will hit
+  /api/get-document and miss. overlays/claix-dev-servers-overlay.yaml records the per-operation
+  servers the docs state. Every apex URL 308s to www.claix.dev.
+api_style: REST over HTTPS; multipart/form-data uploads (JSON for schema, space and Q&A calls); JSON responses; one binary response (jsonToExcel returns .xlsx with Content-Disposition)
+
+authentication:
+  scheme: API key in x-api-key header, or the same key as Authorization Bearer
+  precedence: x-api-key wins when both are sent
+  key_scope: one workspace (account); every schema, document and space is owned by the key's account
+  env_var: CLAIX_API_KEY (SDK)
+  docs: https://www.claix.dev/documentation/excel-to-json
+  detail: authentication/claix-dev-authentication.yml
+
+idempotency:
+  supported: false
+  coverage: none
+  mechanism: null
+  notes: >-
+    No Idempotency-Key or equivalent on any write. The MCP tool annotations mark extractions
+    idempotentHint:true and createSchema idempotentHint:false, which describes side effects, not a
+    replay guard: a retried createSchema/createSpace creates a second object; a retried extraction
+    bills a second successful call (and, with window_context, persists a second document). Deletes
+    are naturally idempotent (second call 404s).
+
+dry_run_mode:
+  supported: false
+  notes: No test mode, sandbox key or dry-run flag. The first 100 successful calls are free, which is a billing allowance, not a sandbox (see plans/).
+
+reversibility:
+  grade: documented
+  summary: >-
+    Every create has a delete; no delete has an undo, and the docs say so ("Irreversible" on
+    claix.document.delete / claix.spaces.delete). No reversal WINDOW is stated anywhere, so the
+    grade stays at documented rather than verified. Extraction calls themselves are non-reversible
+    in the billing sense (a successful call is billed) but have no persistent side effect unless
+    the schema has window_context enabled.
+  write_surfaces:
+    - operation: createSchema
+      reversal: deleteSchema
+      window: null
+      note: No stated window; delete is immediate and irreversible.
+    - operation: createSpace
+      reversal: deleteSpace
+      window: null
+      note: >-
+        Deleting a space is documented as irreversible; the docs do not say whether documents
+        grouped in it are deleted or orphaned.
+    - operation: excelToJson / pdfToJson / docToJson / imgToJson / txtToJson / agent*ToJson (with window_context enabled on the schema)
+      reversal: deleteDocument
+      window: null
+      expiry: >-
+        Persisted documents expire on their own after the schema's window_time (5-1440 minutes,
+        or "infinity" with Persistent Mode) - a retention window, not a reversal window.
+      note: A persisted document can be deleted at any time before expiry; the extraction charge is not reversed.
+    - operation: deleteSchema / deleteSpace / deleteDocument
+      reversal: null
+      window: null
+      note: Documented as irreversible.
+    - operation: jsonToExcel
+      reversal: na
+      note: Pure conversion; returns a file, persists nothing.
+  docs:
+    - https://www.claix.dev/documentation/mcp
+    - https://www.claix.dev/documentation/window-context
+    - https://www.claix.dev/documentation/schemas/create-schema
+
+pagination:
+  style: none
+  notes: listSchemas returns every schema on the account in one response; no other list endpoints.
+
+field_expansion:
+  supported: false
+
+metadata:
+  supported: false
+  notes: No free-form metadata on schemas, documents or spaces; schema_definition and agent_definition are the only client-defined structures.
+
+request_tracing:
+  request_id_header: null
+  notes: No request-id header documented or declared in the spec. The A2A envelope echoes the client's JSON-RPC id, and Tasks carry id + contextId.
+
+versioning:
+  scheme: unversioned-path
+  spec_version: 1.8.2
+  detail: lifecycle/claix-dev-lifecycle.yml
+
+error_envelope:
+  media_type: application/json
+  shape: '{ "error": string, "detalle"?: string }'
+  rfc9457: false
+  detail: errors/claix-dev-problem-types.yml
+
+rate_limit_signaling:
+  a2a:
+    limit: 60 requests per minute per API key
+    status: 429
+    headers: [Retry-After]
+    jsonrpc_code: -32000
+  rest:
+    documented: false
+    notes: No numeric limit or header documented for the REST routes; the SDK retries on 429, 502, 503, 504 with a 120 s default timeout.
+  detail: rate-limits/claix-dev-rate-limits.yml
+
+payload_limits:
+  pdf: 15 MB
+  image: 15 MB
+  document: 10 MB and 300,000 extracted characters
+  text_content: 300,000 characters
+  questions: 1-5 per call, 400 characters each
+  schema_name: 200 characters
+  resumen_agent: 500 characters
+  excel: first sheet only
+
+async_pattern:
+  rest: synchronous - the extraction response is the result
+  a2a: >-
+    Long tasks return status.state "working"; completion arrives via a push webhook
+    (pushNotificationConfig) or polling tasks/get. No SSE / message/stream.
+  detail: asyncapi/claix-dev-webhooks.yml
+
+surfaces:
+  rest: https://claix.dev/api (+ origin-root routes, see base_url_note)
+  mcp: https://www.claix.dev/mcp  # mcp/claix-dev-mcp.yml
+  a2a: https://www.claix.dev/a2a  # a2a/claix-dev-a2a.yml
+  crosswalk: mcp/claix-dev-tool-crosswalk.yml

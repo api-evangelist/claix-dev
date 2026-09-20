@@ -1,0 +1,98 @@
+generated: '2026-09-19'
+method: probed
+source: https://www.claix.dev/.well-known/agent-card.json
+description: >-
+  A2A Agent Card observed at /.well-known/agent-card.json on www.claix.dev (the apex
+  https://claix.dev/.well-known/agent-card.json answers 308 to the www host; the legacy
+  /.well-known/agent.json path serves a byte-identical body). Grade is measured against the
+  A2A 1.0.0 AgentCard object: 'conformant' passes every structural check, 'near-conformant'
+  is correctly shaped but omits optional fields, 'flavored' fails a hard check. Provider-published
+  by construction - served from the provider's own host; nothing here is derived or generated.
+discovery:
+  path: /.well-known/agent-card.json
+  canonical: true
+  host: www.claix.dev
+  also_served_at:
+    - path: /.well-known/agent.json
+      canonical: false
+      status: 200
+      note: byte-identical to the canonical path (cmp exit 0, 2026-09-19)
+    - url: https://claix.dev/.well-known/agent-card.json
+      status: 308
+      note: apex redirects to https://www.claix.dev/.well-known/agent-card.json
+conformance:
+  spec: A2A 1.0.0
+  grade: conformant
+  checks:
+    capabilities_is_object: true
+    protocol_version_present: true
+    skills_is_array: true
+    preferred_transport_present: true
+    default_input_modes_present: true
+    default_output_modes_present: true
+  protocol_version: '0.3'
+  preferred_transport: JSONRPC
+  deviations:
+    - field: protocolVersion
+      observed: '0.3'
+      note: >-
+        Declared as the two-segment string "0.3" rather than a full "0.3.0"; present and parseable,
+        so it passes the hard check.
+    - field: supportedInterfaces
+      note: >-
+        The card carries the 1.0-era supportedInterfaces[] alongside the 0.3-era url +
+        preferredTransport pair (both name https://www.claix.dev/a2a over JSONRPC). Redundant, not
+        contradictory.
+    - field: capabilities.streaming
+      observed: false
+      note: >-
+        No message/stream; long tasks return status.state "working" and complete via
+        pushNotifications (capabilities.pushNotifications true). Documented at
+        https://www.claix.dev/documentation/a2a section 8.
+card:
+  name: Claix
+  description: >-
+    Claix turns unstructured documents into typed JSON and queryable memory for AI agents. Extract
+    PDF, Excel, Word, images, and text; ask persisted documents by document_id; reason across a
+    knowledge space with space_id.
+  url: https://www.claix.dev/a2a
+  version: 1.0.0
+  documentation_url: https://www.claix.dev/documentation
+  icon_url: https://www.claix.dev/claix-logo.png
+  provider:
+    organization: Claix
+    url: https://www.claix.dev
+  security_schemes:
+    apiKey: {type: apiKey, in: header, name: x-api-key}
+  capabilities:
+    streaming: false
+    pushNotifications: true
+    extensions:
+      - uri: https://claix.dev/a2a/extensions/openapi-skills
+        required: false
+        note: >-
+          Per-skill JSON Schema of inputs generated from the provider's own openapi.yaml, with an
+          openApiOperationId / openApiPath / openApiMethod binding for every skill. This is the
+          provider's own crosswalk and is what mcp/claix-dev-tool-crosswalk.yml reads.
+  skills: 20
+  skill_ids: [extract-excel, convert-json-to-excel, extract-pdf, extract-doc, extract-img, extract-txt,
+    get-document, query-document, query-space, create-space, delete-space, delete-document,
+    agent-extract-excel, agent-extract-pdf, agent-extract-doc, agent-extract-img, agent-extract-txt,
+    list-schemas, create-schema, delete-schema]
+  file: claix-dev-agent-card.json
+endpoint:
+  url: https://www.claix.dev/a2a
+  probed: '2026-09-19'
+  anonymous_post_status: 401
+  anonymous_post_body: '{"jsonrpc":"2.0","id":1,"error":{"code":-32001,"message":"Unauthorized: send x-api-key or Authorization: Bearer."}}'
+  methods_documented: [message/send, tasks/get, tasks/cancel, tasks/pushNotificationConfig/set]
+  rate_limit: 60 requests per minute per API key (HTTP 429 + Retry-After; JSON-RPC -32000)
+  docs: https://www.claix.dev/documentation/a2a
+x-evidence:
+  fetched: '2026-09-19'
+  url: https://www.claix.dev/.well-known/agent-card.json
+  http_status: 200
+  content_type: application/json
+  etag: W/"893fd4aaf322ce31"
+  bytes: 36025
+  note: Verbatim body saved alongside this manifest. No field inferred.
