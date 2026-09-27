@@ -1,0 +1,176 @@
+openapi: 3.2.0
+info:
+  title: Claix Dev Documento a JSON API
+  version: 1.8.2
+  description: 'Operations tagged Documento a JSON across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://claix.dev/api
+  description: Producción (dominio público Claix)
+security:
+- ApiKeyAuth: []
+- BearerAuth: []
+tags:
+- name: Documento a JSON
+  description: Extracción de datos estructurados a partir de documentos de texto (.docx, .txt, .md, .rtf)
+paths:
+  /doc-json:
+    post:
+      operationId: docToJson
+      tags:
+      - Documento a JSON
+      summary: Extrae datos estructurados de un documento de texto según un schema
+      description: 'Recibe un archivo de documento (.docx, .txt, .md o .rtf) y un schema_id, y devuelve un único objeto JSON con los datos extraídos del documento completo, con las claves exactamente iguales a las propiedades definidas en el schema. El texto se extrae de forma determinista en el servidor ANTES de llamar a la IA (desempaquetado del .docx, decodificación UTF-8 para .txt/.md, stripping de códigos de control para .rtf); solo el texto plano resultante se envía al modelo. El formato legacy .doc (Word 97-2003) no está soportado. Igual que en pdf-json, el documento se trata como una única fuente de datos: la respuesta siempre contiene exactamente un registro en "data". El tamaño máximo de archivo admitido es 10 MB, y el texto extraído no puede superar los 300.000 caracteres.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocJsonRequest'
+      responses:
+        '200':
+          description: Documento analizado y datos extraídos correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocJsonSuccessResponse'
+        '400':
+          description: 'Petición inválida (archivo faltante, formato no soportado, documento vacío o sin texto extraíble, .doc legacy sin convertir, .docx corrupto, o schema_id incorrecto/faltante/de tipo equivocado)
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: 'El archivo supera el tamaño máximo admitido (10 MB), o el texto extraído supera el límite de 300.000 caracteres
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 'No se pudo extraer ningún dato del documento relacionado con el schema indicado
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA encargado de analizar el texto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://claix.dev/api
+      description: Producción (dominio público Claix)
+components:
+  schemas:
+    DocJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Contratos de Alquiler
+        total_registros:
+          type: integer
+          description: 'Siempre 1 en este endpoint: el documento completo se trata como una única fuente de datos, no como una tabla de múltiples filas.
+
+            '
+          example: 1
+        data:
+          type: array
+          description: 'Contiene exactamente un objeto con los datos extraídos del documento, según las propiedades definidas en el schema. Los datos no encontrados en el texto se devuelven como null.
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - nombre_arrendatario: Laura Fernández Ruiz
+            nombre_arrendador: Inversiones Delta S.L.
+            direccion_inmueble: Calle Mayor 14, 3ºB, Madrid
+            renta_mensual: 950.0
+            fecha_inicio: '2026-04-01'
+    DocJsonRequest:
+      type: object
+      required:
+      - file
+      - schema_id
+      properties:
+        file:
+          type: string
+          format: binary
+          description: 'Archivo de documento a analizar. Formatos admitidos: .docx (application/vnd.openxmlformats-officedocument.wordprocessingml.document), .txt (text/plain), .md (text/markdown) y .rtf (application/rtf). El formato legacy .doc (application/msword) NO está soportado. Tamaño máximo admitido: 10 MB.
+
+            '
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "Documento a JSON".
+
+            '
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: 'API key secreta de servidor. Tiene prioridad sobre Authorization si se envían ambos headers.
+
+        '
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Forma alternativa de enviar la API key como Bearer token.
+x-refined-from:
+- claix-dev-openapi.yaml
+- claix-dev-openapi.yml

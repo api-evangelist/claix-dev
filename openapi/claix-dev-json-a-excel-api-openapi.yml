@@ -1,0 +1,199 @@
+openapi: 3.2.0
+info:
+  title: Claix Dev JSON a Excel API
+  version: 1.8.2
+  description: 'Operations tagged JSON a Excel across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://claix.dev/api
+  description: Producción (dominio público Claix)
+security:
+- ApiKeyAuth: []
+- BearerAuth: []
+tags:
+- name: JSON a Excel
+  description: Conversión de datos JSON a archivos Excel binarios
+paths:
+  /json-excel:
+    post:
+      operationId: jsonToExcel
+      tags:
+      - JSON a Excel
+      summary: Convierte uno o varios documentos JSON a un archivo Excel
+      description: Recibe datos JSON (como archivo, texto plano o cuerpo JSON puro) y un schema_id, y devuelve un archivo .xlsx binario con las columnas en el orden y nombres definidos por el schema. Admite multipart/form-data (uno o varios campos con JSON) o application/json puro (array, objeto único, o sobre con schema_id + data/records).
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/JsonExcelMultipartRequest'
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/JsonExcelArrayRequest'
+              - $ref: '#/components/schemas/JsonExcelSingleObjectRequest'
+              - $ref: '#/components/schemas/JsonExcelEnvelopeRequest'
+      parameters:
+      - name: schema_id
+        in: query
+        required: false
+        description: 'UUID del schema a utilizar. Alternativa a incluirlo en el cuerpo JSON (solo aplica cuando se usa application/json puro sin sobre).
+
+          '
+        schema:
+          type: string
+          format: uuid
+          example: 1f9e6103-9221-4c22-8a3a-8592d8b0eb38
+      responses:
+        '200':
+          description: Archivo Excel generado correctamente (respuesta binaria)
+          headers:
+            Content-Disposition:
+              description: Nombre de archivo sugerido basado en el nombre del schema
+              schema:
+                type: string
+                example: attachment; filename="Leads de Ventas.xlsx"
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Petición inválida (datos JSON o schema_id incorrectos/faltantes)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: No se encontró correspondencia entre claves y schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA encargado de interpretar los datos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://claix.dev/api
+      description: Producción (dominio público Claix)
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    JsonExcelSingleObjectRequest:
+      type: object
+      description: Forma B.2 -- un único objeto de registro.
+      additionalProperties: true
+      example:
+        nombre: Laura Fernández
+        email: laura@nebulatech.com
+    JsonExcelArrayRequest:
+      type: array
+      description: Forma B.1 -- array directo de registros.
+      items:
+        type: object
+        additionalProperties: true
+      example:
+      - nombre: Laura Fernández
+        email: laura@nebulatech.com
+      - nombre: Miguel Gómez
+        email: m.gomez@construred.es
+    JsonExcelMultipartRequest:
+      type: object
+      required:
+      - schema_id
+      properties:
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "JSON a Excel".
+
+            '
+          example: 1f9e6103-9221-4c22-8a3a-8592d8b0eb38
+        files:
+          type: array
+          description: 'Uno o varios archivos o campos de texto con contenido JSON (objeto único o array de objetos). Se puede repetir este campo o usar nombres de campo distintos; todos los que contengan JSON válido son tenidos en cuenta.
+
+            '
+          items:
+            type: string
+            format: binary
+    JsonExcelEnvelopeRequest:
+      type: object
+      description: 'Forma B.3 -- "sobre" con el schema_id incluido y los datos dentro de "data" (o, de forma equivalente, "records").
+
+        '
+      required:
+      - schema_id
+      - data
+      properties:
+        schema_id:
+          type: string
+          format: uuid
+          example: 1f9e6103-9221-4c22-8a3a-8592d8b0eb38
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - nombre: Laura Fernández
+            email: laura@nebulatech.com
+          - nombre: Miguel Gómez
+            email: m.gomez@construred.es
+        records:
+          type: array
+          description: Alternativa equivalente a "data".
+          items:
+            type: object
+            additionalProperties: true
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: 'API key secreta de servidor. Tiene prioridad sobre Authorization si se envían ambos headers.
+
+        '
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Forma alternativa de enviar la API key como Bearer token.
+x-refined-from:
+- claix-dev-openapi.yaml
+- claix-dev-openapi.yml

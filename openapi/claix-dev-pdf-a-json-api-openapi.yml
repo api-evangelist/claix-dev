@@ -1,0 +1,174 @@
+openapi: 3.2.0
+info:
+  title: Claix Dev PDF a JSON API
+  version: 1.8.2
+  description: 'Operations tagged PDF a JSON across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://claix.dev/api
+  description: Producción (dominio público Claix)
+security:
+- ApiKeyAuth: []
+- BearerAuth: []
+tags:
+- name: PDF a JSON
+  description: Extracción de datos estructurados a partir de archivos PDF
+paths:
+  /pdf-json:
+    post:
+      operationId: pdfToJson
+      tags:
+      - PDF a JSON
+      summary: Extrae datos estructurados de un archivo PDF según un schema
+      description: 'Recibe un archivo .pdf (de texto seleccionable o escaneado) y un schema_id, y devuelve un único objeto JSON con los datos extraídos del documento completo, con las claves exactamente iguales a las propiedades definidas en el schema. A diferencia de excel-json, el documento se trata como una única fuente de datos: la respuesta siempre contiene exactamente un registro en "data", nunca una fila por cada elemento del documento. El tamaño máximo de archivo admitido es 15 MB.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PdfJsonRequest'
+      responses:
+        '200':
+          description: PDF analizado y datos extraídos correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PdfJsonSuccessResponse'
+        '400':
+          description: 'Petición inválida (archivo faltante, no es un PDF válido, PDF vacío, o schema_id incorrecto/faltante/de tipo equivocado)
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: El PDF supera el tamaño máximo admitido (15 MB)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 'No se pudo extraer ningún dato del PDF relacionado con el schema indicado
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA encargado de analizar el PDF
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://claix.dev/api
+      description: Producción (dominio público Claix)
+components:
+  schemas:
+    PdfJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Facturas de Proveedores
+        total_registros:
+          type: integer
+          description: 'Siempre 1 en este endpoint: el documento completo se trata como una única fuente de datos, no como una tabla de múltiples filas.
+
+            '
+          example: 1
+        data:
+          type: array
+          description: 'Contiene exactamente un objeto con los datos extraídos del PDF, según las propiedades definidas en el schema. Los datos no encontrados en el documento se devuelven como null.
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - numero_factura: F-2026-00456
+            fecha_emision: '2026-03-14'
+            proveedor: Suministros Industriales del Ebro S.L.
+            importe_total: 1284.5
+            moneda: EUR
+    PdfJsonRequest:
+      type: object
+      required:
+      - file
+      - schema_id
+      properties:
+        file:
+          type: string
+          format: binary
+          description: 'Archivo PDF a analizar (texto seleccionable o escaneado). Tamaño máximo admitido: 15 MB.
+
+            '
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "PDF a JSON".
+
+            '
+          example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: 'API key secreta de servidor. Tiene prioridad sobre Authorization si se envían ambos headers.
+
+        '
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Forma alternativa de enviar la API key como Bearer token.
+x-refined-from:
+- claix-dev-openapi.yaml
+- claix-dev-openapi.yml

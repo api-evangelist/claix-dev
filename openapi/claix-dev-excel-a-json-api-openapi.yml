@@ -1,0 +1,169 @@
+openapi: 3.2.0
+info:
+  title: Claix Dev Excel a JSON API
+  version: 1.8.2
+  description: 'Operations tagged Excel a JSON across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://claix.dev/api
+  description: Producción (dominio público Claix)
+security:
+- ApiKeyAuth: []
+- BearerAuth: []
+tags:
+- name: Excel a JSON
+  description: Conversión de archivos Excel/CSV a JSON estructurado
+paths:
+  /excel-json:
+    post:
+      operationId: excelToJson
+      tags:
+      - Excel a JSON
+      summary: Convierte un archivo Excel o CSV a JSON según un schema
+      description: Recibe un archivo .xlsx o .csv y un schema_id, y devuelve los datos transformados en JSON con las claves exactamente iguales a las propiedades definidas en el schema. Si el archivo tiene varias hojas, solo se procesa la primera.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExcelJsonRequest'
+      responses:
+        '200':
+          description: Archivo procesado y transformado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExcelJsonSuccessResponse'
+        '400':
+          description: Petición inválida (archivo o schema_id incorrectos/faltantes)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: No se encontró correspondencia entre columnas y schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA encargado de interpretar el archivo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://claix.dev/api
+      description: Producción (dominio público Claix)
+components:
+  schemas:
+    ExcelJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Leads de Ventas
+        total_filas_procesadas:
+          type: integer
+          description: Número de filas de datos transformadas.
+          example: 247
+        mapa_columnas:
+          type: object
+          description: 'Diccionario que muestra qué columna original se emparejó con qué propiedad del schema.
+
+            '
+          additionalProperties:
+            type: string
+          example:
+            Nom_cliente: nombre_completo
+            Tlf: telefono_movil
+            mail de contacto: email_contacto
+        data:
+          type: array
+          description: Registros transformados según el schema.
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - nombre_completo: Ana María Gómez
+            cargo: CEO & Founder
+            empresa: TechSolutions
+            email_contacto: ana.gomez@techsolutions.com
+            telefono_movil: +1 (555) 019-2231
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    ExcelJsonRequest:
+      type: object
+      required:
+      - file
+      - schema_id
+      properties:
+        file:
+          type: string
+          format: binary
+          description: Archivo Excel (.xlsx) o CSV (.csv) a transformar.
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "Excel/CSV a JSON".
+
+            '
+          example: 8f14e45f-ceea-4e6f-8b23-1e2d3c4b5a6f
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: 'API key secreta de servidor. Tiene prioridad sobre Authorization si se envían ambos headers.
+
+        '
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Forma alternativa de enviar la API key como Bearer token.
+x-refined-from:
+- claix-dev-openapi.yaml
+- claix-dev-openapi.yml

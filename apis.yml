@@ -31,58 +31,14 @@ tags:
 - Spain
 - Company
 apis:
-- aid: claix-dev:claix-document-intelligence-api
-  name: Claix Document Intelligence API
-  image: https://www.claix.dev/claix-logo.png
-  description: >-
-    REST API (Claix API 1.8.2) with 20 operations: six schema-driven conversions (Excel/CSV, PDF,
-    Word/text, image and raw text to JSON; JSON to Excel), five Agent-mode variants that add a
-    reasoning layer, schema management, and the context layer - persisted documents you can read,
-    ask and delete, and knowledge spaces you can query across. API key in x-api-key or Bearer;
-    multipart uploads in, typed JSON out.
-  humanURL: https://www.claix.dev/documentation/excel-to-json
-  baseURL: https://claix.dev/api
-  tags:
-  - Document Processing
-  - Data Extraction
-  - PDF
-  - Excel
-  - OCR
-  properties:
-  - type: OpenAPI
-    url: openapi/claix-dev-openapi.yml
-  - type: OpenAPI
-    url: https://www.claix.dev/openapi.yaml
-    name: Provider-hosted OpenAPI 3.0.3 (source of the local copy)
-  - type: Documentation
-    url: https://www.claix.dev/documentation/excel-to-json
-  - type: APIReference
-    url: https://www.claix.dev/documentation/excel-to-json
-  - type: Authentication
-    url: authentication/claix-dev-authentication.yml
-  - type: Conventions
-    url: conventions/claix-dev-conventions.yml
-  - type: ErrorCatalog
-    url: errors/claix-dev-problem-types.yml
-  - type: DataModel
-    url: data-model/claix-dev-data-model.yml
-  - type: Overlay
-    url: overlays/claix-dev-servers-overlay.yaml
-  - type: RateLimits
-    url: rate-limits/claix-dev-rate-limits.yml
-  - type: Plans
-    url: plans/claix-dev-plans-pricing.yml
-  - type: SDK
-    url: https://github.com/Gaelproodoos/claix-python
 - aid: claix-dev:claix-mcp-server
   name: Claix MCP Server
   image: https://www.claix.dev/claix-logo.png
   description: >-
-    Hosted, remote Model Context Protocol server (Streamable HTTP and legacy SSE) exposing the
-    REST contract as dot-named tools - claix.schemas.*, claix.extract.*, claix.agent.*,
-    claix.convert.json_to_excel, claix.window_context.*, claix.document.delete - plus workflow
-    prompts and doc resources. tools/list answers anonymously; calls need the x-api-key header.
-    Listed on Smithery as info-f4xz/claix.
+    Hosted, remote Model Context Protocol server (Streamable HTTP and legacy SSE) exposing the REST contract
+    as dot-named tools - claix.schemas.*, claix.extract.*, claix.agent.*, claix.convert.json_to_excel,
+    claix.window_context.*, claix.document.delete - plus workflow prompts and doc resources. tools/list
+    answers anonymously; calls need the x-api-key header. Listed on Smithery as info-f4xz/claix.
   humanURL: https://www.claix.dev/documentation/mcp
   baseURL: https://www.claix.dev/mcp
   tags:
@@ -100,10 +56,10 @@ apis:
   name: Claix A2A Agent
   image: https://www.claix.dev/claix-logo.png
   description: >-
-    Native Agent-to-Agent (A2A 0.3) JSON-RPC agent at /a2a with a public agent card at
-    /.well-known/agent-card.json declaring 20 skills, each bound by the provider to its OpenAPI
-    operation. message/send with a DataPart or TextPart, tasks/get, tasks/cancel and push
-    notifications for long tasks; same API key as REST; 60 requests/minute per key.
+    Native Agent-to-Agent (A2A 0.3) JSON-RPC agent at /a2a with a public agent card at /.well-known/agent-card.json
+    declaring 20 skills, each bound by the provider to its OpenAPI operation. message/send with a DataPart
+    or TextPart, tasks/get, tasks/cancel and push notifications for long tasks; same API key as REST;
+    60 requests/minute per key.
   humanURL: https://www.claix.dev/documentation/a2a
   baseURL: https://www.claix.dev/a2a
   tags:
@@ -117,12 +73,308 @@ apis:
     url: https://www.claix.dev/documentation/a2a
   - type: Webhooks
     url: asyncapi/claix-dev-webhooks.yml
+- aid: claix-dev:claix-dev-documento-a-json-api
+  name: Claix Documento a JSON API
+  description: >-
+    Extracción de datos estructurados a partir de documentos de texto (.docx, .txt, .md, .rtf)
+  humanURL: https://www.claix.dev/documentation/excel-to-json
+  baseURL: https://claix.dev/api
+  tags:
+  - Documento a JSON
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-documento-a-json-api-openapi.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: APIReference
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: Authentication
+    url: authentication/claix-dev-authentication.yml
+  - type: Conventions
+    url: conventions/claix-dev-conventions.yml
+  - type: ErrorCatalog
+    url: errors/claix-dev-problem-types.yml
+  - type: DataModel
+    url: data-model/claix-dev-data-model.yml
+  - type: RateLimits
+    url: rate-limits/claix-dev-rate-limits.yml
+  - type: Plans
+    url: plans/claix-dev-plans-pricing.yml
+  - type: SDK
+    url: https://github.com/Gaelproodoos/claix-python
+- aid: claix-dev:claix-dev-espacios-de-conocimiento-api
+  name: Claix Espacios de Conocimiento API
+  description: >-
+    Creación y borrado de espacios de conocimiento, y preguntas cruzadas sobre todos los documentos vigentes
+    agrupados en uno de ellos. El formato de entrada y salida de las preguntas es el mismo que en la ventana
+    de contexto. URLs públicas: POST https://claix.dev/create-space; DELETE https://claix.dev/delete-space/{space_id};
+    POST https://claix.dev/space-context/{space_id}.
+  humanURL: https://www.claix.dev/documentation/excel-to-json
+  baseURL: https://claix.dev/api
+  tags:
+  - Espacios de Conocimiento
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-espacios-de-conocimiento-api-openapi.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: APIReference
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: Authentication
+    url: authentication/claix-dev-authentication.yml
+  - type: Conventions
+    url: conventions/claix-dev-conventions.yml
+  - type: ErrorCatalog
+    url: errors/claix-dev-problem-types.yml
+  - type: DataModel
+    url: data-model/claix-dev-data-model.yml
+  - type: RateLimits
+    url: rate-limits/claix-dev-rate-limits.yml
+  - type: Plans
+    url: plans/claix-dev-plans-pricing.yml
+  - type: SDK
+    url: https://github.com/Gaelproodoos/claix-python
+- aid: claix-dev:claix-dev-excel-a-json-api
+  name: Claix Excel a JSON API
+  description: Conversión de archivos Excel/CSV a JSON estructurado
+  humanURL: https://www.claix.dev/documentation/excel-to-json
+  baseURL: https://claix.dev/api
+  tags:
+  - Excel a JSON
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-excel-a-json-api-openapi.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: APIReference
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: Authentication
+    url: authentication/claix-dev-authentication.yml
+  - type: Conventions
+    url: conventions/claix-dev-conventions.yml
+  - type: ErrorCatalog
+    url: errors/claix-dev-problem-types.yml
+  - type: DataModel
+    url: data-model/claix-dev-data-model.yml
+  - type: RateLimits
+    url: rate-limits/claix-dev-rate-limits.yml
+  - type: Plans
+    url: plans/claix-dev-plans-pricing.yml
+  - type: SDK
+    url: https://github.com/Gaelproodoos/claix-python
+- aid: claix-dev:claix-dev-imagen-a-json-api
+  name: Claix Imagen a JSON API
+  description: >-
+    Extracción de datos estructurados a partir de imágenes (.jpeg, .jpg, .png, .webp, .heic, .heif)
+  humanURL: https://www.claix.dev/documentation/excel-to-json
+  baseURL: https://claix.dev/api
+  tags:
+  - Imagen a JSON
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-imagen-a-json-api-openapi.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: APIReference
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: Authentication
+    url: authentication/claix-dev-authentication.yml
+  - type: Conventions
+    url: conventions/claix-dev-conventions.yml
+  - type: ErrorCatalog
+    url: errors/claix-dev-problem-types.yml
+  - type: DataModel
+    url: data-model/claix-dev-data-model.yml
+  - type: RateLimits
+    url: rate-limits/claix-dev-rate-limits.yml
+  - type: Plans
+    url: plans/claix-dev-plans-pricing.yml
+  - type: SDK
+    url: https://github.com/Gaelproodoos/claix-python
+- aid: claix-dev:claix-dev-json-a-excel-api
+  name: Claix JSON a Excel API
+  description: Conversión de datos JSON a archivos Excel binarios
+  humanURL: https://www.claix.dev/documentation/excel-to-json
+  baseURL: https://claix.dev/api
+  tags:
+  - JSON a Excel
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-json-a-excel-api-openapi.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: APIReference
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: Authentication
+    url: authentication/claix-dev-authentication.yml
+  - type: Conventions
+    url: conventions/claix-dev-conventions.yml
+  - type: ErrorCatalog
+    url: errors/claix-dev-problem-types.yml
+  - type: DataModel
+    url: data-model/claix-dev-data-model.yml
+  - type: RateLimits
+    url: rate-limits/claix-dev-rate-limits.yml
+  - type: Plans
+    url: plans/claix-dev-plans-pricing.yml
+  - type: SDK
+    url: https://github.com/Gaelproodoos/claix-python
+- aid: claix-dev:claix-dev-modo-agente-api
+  name: Claix Modo Agente API
+  description: >-
+    Extracción estructurada más razonamiento semántico en una sola llamada. Requiere schema con is_agent_mode
+    activado y agent_definition configurada. URLs públicas: POST /agent/excel-json, /agent/pdf-json, /agent/doc-json,
+    /agent/img-json, /agent/txt-json (documentación humana en /documentation/agent/*).
+  humanURL: https://www.claix.dev/documentation/excel-to-json
+  baseURL: https://claix.dev/api
+  tags:
+  - Modo Agente
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-modo-agente-api-openapi.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: APIReference
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: Authentication
+    url: authentication/claix-dev-authentication.yml
+  - type: Conventions
+    url: conventions/claix-dev-conventions.yml
+  - type: ErrorCatalog
+    url: errors/claix-dev-problem-types.yml
+  - type: DataModel
+    url: data-model/claix-dev-data-model.yml
+  - type: RateLimits
+    url: rate-limits/claix-dev-rate-limits.yml
+  - type: Plans
+    url: plans/claix-dev-plans-pricing.yml
+  - type: SDK
+    url: https://github.com/Gaelproodoos/claix-python
+- aid: claix-dev:claix-dev-pdf-a-json-api
+  name: Claix PDF a JSON API
+  description: Extracción de datos estructurados a partir de archivos PDF
+  humanURL: https://www.claix.dev/documentation/excel-to-json
+  baseURL: https://claix.dev/api
+  tags:
+  - PDF a JSON
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-pdf-a-json-api-openapi.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: APIReference
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: Authentication
+    url: authentication/claix-dev-authentication.yml
+  - type: Conventions
+    url: conventions/claix-dev-conventions.yml
+  - type: ErrorCatalog
+    url: errors/claix-dev-problem-types.yml
+  - type: DataModel
+    url: data-model/claix-dev-data-model.yml
+  - type: RateLimits
+    url: rate-limits/claix-dev-rate-limits.yml
+  - type: Plans
+    url: plans/claix-dev-plans-pricing.yml
+  - type: SDK
+    url: https://github.com/Gaelproodoos/claix-python
+- aid: claix-dev:claix-dev-schemas-api
+  name: Claix Schemas API
+  description: Consulta de los schemas creados en la cuenta
+  humanURL: https://www.claix.dev/documentation/excel-to-json
+  baseURL: https://claix.dev/api
+  tags:
+  - Schemas
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-schemas-api-openapi.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: APIReference
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: Authentication
+    url: authentication/claix-dev-authentication.yml
+  - type: Conventions
+    url: conventions/claix-dev-conventions.yml
+  - type: ErrorCatalog
+    url: errors/claix-dev-problem-types.yml
+  - type: DataModel
+    url: data-model/claix-dev-data-model.yml
+  - type: RateLimits
+    url: rate-limits/claix-dev-rate-limits.yml
+  - type: Plans
+    url: plans/claix-dev-plans-pricing.yml
+  - type: SDK
+    url: https://github.com/Gaelproodoos/claix-python
+- aid: claix-dev:claix-dev-texto-a-json-api
+  name: Claix Texto a JSON API
+  description: >-
+    Extracción de datos estructurados a partir de texto plano, HTML o XML ya procesado (campo content,
+    sin archivo)
+  humanURL: https://www.claix.dev/documentation/excel-to-json
+  baseURL: https://claix.dev/api
+  tags:
+  - Texto a JSON
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-texto-a-json-api-openapi.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: APIReference
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: Authentication
+    url: authentication/claix-dev-authentication.yml
+  - type: Conventions
+    url: conventions/claix-dev-conventions.yml
+  - type: ErrorCatalog
+    url: errors/claix-dev-problem-types.yml
+  - type: DataModel
+    url: data-model/claix-dev-data-model.yml
+  - type: RateLimits
+    url: rate-limits/claix-dev-rate-limits.yml
+  - type: Plans
+    url: plans/claix-dev-plans-pricing.yml
+  - type: SDK
+    url: https://github.com/Gaelproodoos/claix-python
+- aid: claix-dev:claix-dev-ventana-de-contexto-api
+  name: Claix Ventana de Contexto API
+  description: >-
+    Consulta de contenido bruto, preguntas o borrado de un documento persistido (markdown_content) identificado
+    por document_id. URLs públicas: GET https://claix.dev/get-document/{document_id}; POST https://claix.dev/document-context/{document_id};
+    DELETE https://claix.dev/delete-document/{document_id}.
+  humanURL: https://www.claix.dev/documentation/excel-to-json
+  baseURL: https://claix.dev/api
+  tags:
+  - Ventana de Contexto
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-ventana-de-contexto-api-openapi.yml
+  - type: Documentation
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: APIReference
+    url: https://www.claix.dev/documentation/excel-to-json
+  - type: Authentication
+    url: authentication/claix-dev-authentication.yml
+  - type: Conventions
+    url: conventions/claix-dev-conventions.yml
+  - type: ErrorCatalog
+    url: errors/claix-dev-problem-types.yml
+  - type: DataModel
+    url: data-model/claix-dev-data-model.yml
+  - type: RateLimits
+    url: rate-limits/claix-dev-rate-limits.yml
+  - type: Plans
+    url: plans/claix-dev-plans-pricing.yml
+  - type: SDK
+    url: https://github.com/Gaelproodoos/claix-python
 maintainers:
 - FN: Kin Lane
   email: kin@apievangelist.com
 - FN: APIs.json
   email: info@apis.io
 common:
+- type: Overlay
+  url: overlays/claix-dev-servers-overlay.yaml
 - type: DomainSecurity
   url: security/claix-dev-domain-security.yml
 - type: Website
@@ -174,3 +426,10 @@ x-enrichment:
   status: enriched
   artifacts_added: 31
   pass: local-v3
+x-a2a:
+  verified: true
+  probed: '2026-09-26'
+  url: "https://www.claix.dev/.well-known/agent-card.json"
+  grade: "conformant"
+  protocol_version: "0.3"
+  control: 404

@@ -1,0 +1,331 @@
+openapi: 3.2.0
+info:
+  title: Claix Dev Espacios de Conocimiento API
+  version: 1.8.2
+  description: 'Operations tagged Espacios de Conocimiento across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://claix.dev/api
+  description: Producción (dominio público Claix)
+security:
+- ApiKeyAuth: []
+- BearerAuth: []
+tags:
+- name: Espacios de Conocimiento
+  description: 'Creación y borrado de espacios de conocimiento, y preguntas cruzadas sobre todos los documentos vigentes agrupados en uno de ellos. El formato de entrada y salida de las preguntas es el mismo que en la ventana de contexto. URLs públicas: POST https://claix.dev/create-space; DELETE https://claix.dev/delete-space/{space_id}; POST https://claix.dev/space-context/{space_id}.'
+paths:
+  /space-context/{space_id}:
+    servers:
+    - url: https://claix.dev
+      description: Producción (dominio público Claix)
+    post:
+      operationId: spaceContextAsk
+      tags:
+      - Espacios de Conocimiento
+      summary: Responde preguntas cruzando todos los documentos de un espacio
+      description: 'Equivale a POST https://claix.dev/space-context/{space_id}. Mismo formato de entrada y de salida que POST /document-context/{document_id}: body con un array `questions` (máximo 5 preguntas, 400 caracteres cada una) y respuesta `{ user_ask, ia_response }` alineada 1:1. La única diferencia es el alcance: en vez de un único documento, carga el markdown_content de todos los documentos vigentes cuyo `espacio_id` sea ese space_id, y responde cruzando la información entre ellos (comparar, sumar, relacionar o consolidar datos repartidos en varios archivos). El espacio debe pertenecer a la cuenta de la API key. Los documentos expirados se ignoran. Para acotar coste y mantener la precisión del modelo se cargan como máximo 50 documentos y 200.000 caracteres en total, repartidos entre ellos.'
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context
+      parameters:
+      - name: space_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: 'UUID del espacio de conocimiento en espacios_conocimiento. Es el mismo valor que se envía como `space_id` opcional en los endpoints de extracción para agrupar el documento en ese espacio.
+
+          '
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceContextRequest'
+      responses:
+        '200':
+          description: Preguntas respondidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpaceContextSuccessResponse'
+        '400':
+          description: 'Petición inválida (JSON, questions, space_id mal formado) o el espacio no tiene documentos vigentes con contenido
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El espacio de conocimiento no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /create-space:
+    servers:
+    - url: https://claix.dev
+      description: Producción (dominio público Claix)
+    post:
+      operationId: createSpace
+      tags:
+      - Espacios de Conocimiento
+      summary: Crea un espacio de conocimiento en la cuenta del API key
+      description: 'Equivale a POST https://claix.dev/create-space. Crea un espacio de conocimiento vacío en la cuenta de la API key. El único campo obligatorio es `name`. Devuelve el `space_id` que luego se envía como `space_id` opcional en los endpoints de extracción para agrupar documentos, y que identifica el espacio en POST /space-context/{space_id}. Esta llamada es gratuita: no se factura ni consume el cupo de extracciones.'
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/create-space
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSpaceRequest'
+            example:
+              name: Proveedores 2026
+      responses:
+        '201':
+          description: Espacio de conocimiento creado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSpaceSuccessResponse'
+        '400':
+          description: Payload inválido (name ausente, vacío o demasiado largo)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /delete-space/{space_id}:
+    servers:
+    - url: https://claix.dev
+      description: Producción (dominio público Claix)
+    delete:
+      operationId: deleteSpace
+      tags:
+      - Espacios de Conocimiento
+      summary: Elimina un espacio de conocimiento
+      description: Equivale a DELETE https://claix.dev/delete-space/{space_id}. Borra el espacio indicado en la ruta, filtrando a la vez por espacio y por cuenta de la API key, de modo que un espacio ajeno nunca se puede borrar. No admite body ni query params. Si no se elimina ninguna fila (no existe o es ajeno), responde 404 con mensaje genérico. Llamada gratuita.
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/delete-space
+      parameters:
+      - name: space_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: 'UUID del espacio de conocimiento a eliminar, el que devolvió POST /create-space.
+
+          '
+      responses:
+        '200':
+          description: Espacio de conocimiento eliminado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSpaceSuccessResponse'
+        '400':
+          description: space_id ausente en la URL o con formato UUID inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El espacio no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite DELETE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    SpaceContextRequest:
+      type: object
+      required:
+      - questions
+      properties:
+        questions:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 400
+          description: 'Preguntas a responder usando solo el markdown persistido de los documentos del espacio. Mismo formato y mismos límites que document-context: máximo 5 por turno, 400 caracteres cada una.
+
+            '
+          example:
+          - ¿Qué proveedor factura más en total sumando todas las facturas?
+          - ¿Hay algún contrato cuyo importe no coincida con su factura?
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    DeleteSpaceSuccessResponse:
+      type: object
+      required:
+      - space_id
+      properties:
+        space_id:
+          type: string
+          format: uuid
+          description: 'Identificador del espacio eliminado, igual al de la URL. No incluye campo success: si el borrado no fue posible, la petición termina en 404 antes de devolver 200.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    CreateSpaceSuccessResponse:
+      type: object
+      required:
+      - success
+      - space
+      properties:
+        success:
+          type: boolean
+          example: true
+        space:
+          type: object
+          required:
+          - space_id
+          - name
+          - created_at
+          properties:
+            space_id:
+              type: string
+              format: uuid
+              description: 'Identificador del espacio recién creado. Envíalo como `space_id` opcional al extraer para agrupar documentos, y en la ruta de POST /space-context/{space_id} para preguntar al espacio completo.
+
+                '
+              example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+            name:
+              type: string
+              description: Nombre guardado, ya recortado de espacios sobrantes.
+              example: Proveedores 2026
+            created_at:
+              type: string
+              format: date-time
+              description: Fecha y hora de creación del espacio.
+              example: '2026-09-05T14:32:11.482Z'
+    CreateSpaceRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 'Nombre del espacio de conocimiento. Es el único campo de entrada. Máximo 200 caracteres.
+
+            '
+          example: Proveedores 2026
+    SpaceContextSuccessResponse:
+      type: object
+      required:
+      - user_ask
+      - ia_response
+      properties:
+        user_ask:
+          type: array
+          items:
+            type: string
+          description: Preguntas enviadas, en el mismo orden.
+          example:
+          - ¿Qué proveedor factura más en total sumando todas las facturas?
+          - ¿Hay algún contrato cuyo importe no coincida con su factura?
+        ia_response:
+          type: array
+          items:
+            type:
+            - string
+            - 'null'
+          description: 'Respuestas alineadas 1:1 con user_ask. null si el dato no está en ninguno de los documentos del espacio. Cuando la respuesta procede de cruzar varios documentos, incluye una referencia breve a los archivos de origen.
+
+            '
+          example:
+          - Suministros Omega S.A., 48.320 € entre tres facturas (feb, mar, abr).
+          - Sí, contrato-omega.pdf indica 12.000 € y factura-omega-03.pdf cobra 13.450 €.
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: 'API key secreta de servidor. Tiene prioridad sobre Authorization si se envían ambos headers.
+
+        '
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Forma alternativa de enviar la API key como Bearer token.
+x-refined-from:
+- claix-dev-openapi.yaml
+- claix-dev-openapi.yml

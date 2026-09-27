@@ -1,0 +1,324 @@
+openapi: 3.2.0
+info:
+  title: Claix Dev Ventana de Contexto API
+  version: 1.8.2
+  description: 'Operations tagged Ventana de Contexto across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://claix.dev/api
+  description: Producción (dominio público Claix)
+security:
+- ApiKeyAuth: []
+- BearerAuth: []
+tags:
+- name: Ventana de Contexto
+  description: 'Consulta de contenido bruto, preguntas o borrado de un documento persistido (markdown_content) identificado por document_id. URLs públicas: GET https://claix.dev/get-document/{document_id}; POST https://claix.dev/document-context/{document_id}; DELETE https://claix.dev/delete-document/{document_id}.'
+paths:
+  /get-document/{document_id}:
+    servers:
+    - url: https://claix.dev
+      description: Producción (dominio público Claix)
+    get:
+      operationId: getDocument
+      tags:
+      - Ventana de Contexto
+      summary: Devuelve el contenido bruto de un documento procesado
+      description: 'Equivale a GET https://claix.dev/get-document/{document_id}. Endpoint de solo lectura, sin body ni query params. Recupera el contenido bruto (texto/markdown) y metadatos de un documento ya procesado por un endpoint de extracción con window_context activo. El documento debe pertenecer a la cuenta de la API key y no haber expirado. Esta llamada es gratuita: no se factura ni consume el cupo de extracciones.'
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/get-document
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: UUID del documento persistido en documents.
+      responses:
+        '200':
+          description: Contenido bruto y metadatos del documento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetDocumentSuccessResponse'
+        '400':
+          description: Petición inválida (document_id ausente o mal formado)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El documento no existe, no pertenece a la cuenta o ha expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite GET)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /document-context/{document_id}:
+    servers:
+    - url: https://claix.dev
+      description: Producción (dominio público Claix)
+    post:
+      operationId: documentContextAsk
+      tags:
+      - Ventana de Contexto
+      summary: Responde preguntas sobre un documento persistido
+      description: Equivale a POST https://claix.dev/document-context/{document_id}. Recibe un document_id en la URL (el que devolvió una extracción con window_context activo) y un array `questions` en JSON. Carga markdown_content de la tabla documents, llama a Gemini 3.6 con el mismo modelo y generationConfig que el resto de funciones, y devuelve `{ user_ask, ia_response }`. Máximo 5 preguntas y 400 caracteres por pregunta. El documento debe pertenecer a la cuenta de la API key y no haber expirado.
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: UUID del documento persistido en documents.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WindowContextRequest'
+      responses:
+        '200':
+          description: Preguntas respondidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WindowContextSuccessResponse'
+        '400':
+          description: Petición inválida (JSON, questions o document_id)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El documento no existe, no pertenece a la cuenta o ha expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /delete-document/{document_id}:
+    servers:
+    - url: https://claix.dev
+      description: Producción (dominio público Claix)
+    delete:
+      operationId: deleteDocument
+      tags:
+      - Ventana de Contexto
+      summary: Elimina un documento persistido
+      description: Equivale a DELETE https://claix.dev/delete-document/{document_id}. Borra de la tabla documents el documento indicado por document_id, filtrando simultáneamente por id y user_id de la API key. No admite body ni query params. Si no se elimina ninguna fila (no existe, es ajeno o ya fue purgado), responde 404 con mensaje genérico. Llamada gratuita.
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/delete-document
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: UUID del documento persistido en documents.
+      responses:
+        '200':
+          description: Documento eliminado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteDocumentSuccessResponse'
+        '400':
+          description: document_id ausente en la URL o con formato UUID inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El documento no existe, no pertenece a la cuenta o ha expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite DELETE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    DeleteDocumentSuccessResponse:
+      type: object
+      required:
+      - document_id
+      properties:
+        document_id:
+          type: string
+          format: uuid
+          description: 'Identificador del documento eliminado, igual al de la URL. No incluye campo success: si el borrado no fue posible, la petición termina en 404 antes de devolver 200.
+
+            '
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+    GetDocumentSuccessResponse:
+      type: object
+      required:
+      - success
+      - document_id
+      - file_name
+      - schema_id
+      - processed_at
+      - content
+      properties:
+        success:
+          type: boolean
+          description: Siempre true cuando el código HTTP es 200.
+          example: true
+        document_id:
+          type: string
+          format: uuid
+          description: Identificador del documento consultado, igual al de la URL.
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+        file_name:
+          type: string
+          description: Nombre del archivo original tal como se subió al procesarlo.
+          example: dni_cliente_ana.jpg
+        schema_id:
+          type: string
+          format: uuid
+          description: Schema usado para procesar este documento.
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+        processed_at:
+          type: string
+          format: date-time
+          description: Fecha y hora en que se procesó el documento (ISO 8601).
+          example: '2026-08-17T13:10:00.000Z'
+        content:
+          type: string
+          description: 'Contenido bruto del documento (texto o markdown persistido tras la extracción).
+
+            '
+    WindowContextSuccessResponse:
+      type: object
+      required:
+      - user_ask
+      - ia_response
+      properties:
+        user_ask:
+          type: array
+          items:
+            type: string
+          description: Preguntas enviadas, en el mismo orden.
+          example:
+          - ¿Cuál es la penalización exacta por cancelación anticipada?
+          - ¿Qué empresa figura como arrendataria y cuál es su CIF?
+        ia_response:
+          type: array
+          items:
+            type:
+            - string
+            - 'null'
+          description: 'Respuestas alineadas 1:1 con user_ask. null si el dato no está en el documento.
+
+            '
+          example:
+          - El 15 % del importe restante del contrato.
+          - Inversiones Delta S.L., CIF B12345678
+    WindowContextRequest:
+      type: object
+      required:
+      - questions
+      properties:
+        questions:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 400
+          description: 'Preguntas a responder usando solo el markdown persistido. Máximo 5 por turno, 400 caracteres cada una.
+
+            '
+          example:
+          - ¿Cuál es la penalización exacta por cancelación anticipada?
+          - ¿Qué empresa figura como arrendataria y cuál es su CIF?
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: 'API key secreta de servidor. Tiene prioridad sobre Authorization si se envían ambos headers.
+
+        '
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Forma alternativa de enviar la API key como Bearer token.
+x-refined-from:
+- claix-dev-openapi.yaml
+- claix-dev-openapi.yml

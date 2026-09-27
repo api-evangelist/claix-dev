@@ -1,0 +1,170 @@
+openapi: 3.2.0
+info:
+  title: Claix Dev Texto a JSON API
+  version: 1.8.2
+  description: 'Operations tagged Texto a JSON across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://claix.dev/api
+  description: Producción (dominio público Claix)
+security:
+- ApiKeyAuth: []
+- BearerAuth: []
+tags:
+- name: Texto a JSON
+  description: Extracción de datos estructurados a partir de texto plano, HTML o XML ya procesado (campo content, sin archivo)
+paths:
+  /txt-json:
+    post:
+      operationId: txtToJson
+      tags:
+      - Texto a JSON
+      summary: Extrae datos estructurados de Txt / HTML / XML según un schema
+      description: 'Recibe el campo `content` (texto plano, HTML o XML ya procesado) y un schema_id de tipo txt-json, y devuelve un único objeto JSON con los datos extraídos. No se sube ningún archivo. Máximo 300.000 caracteres. URL pública: POST https://claix.dev/api/txt-json. Tarifa fija €0,10 por llamada exitosa (HTTP 200) tras las 15 primeras gratis.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TxtJsonRequest'
+      responses:
+        '200':
+          description: Contenido analizado y datos extraídos correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocJsonSuccessResponse'
+        '400':
+          description: Petición inválida (content faltante o vacío, schema_id incorrecto)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: El contenido supera 300.000 caracteres
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: No se pudo extraer datos del contenido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://claix.dev/api
+      description: Producción (dominio público Claix)
+components:
+  schemas:
+    DocJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Contratos de Alquiler
+        total_registros:
+          type: integer
+          description: 'Siempre 1 en este endpoint: el documento completo se trata como una única fuente de datos, no como una tabla de múltiples filas.
+
+            '
+          example: 1
+        data:
+          type: array
+          description: 'Contiene exactamente un objeto con los datos extraídos del documento, según las propiedades definidas en el schema. Los datos no encontrados en el texto se devuelven como null.
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - nombre_arrendatario: Laura Fernández Ruiz
+            nombre_arrendador: Inversiones Delta S.L.
+            direccion_inmueble: Calle Mayor 14, 3ºB, Madrid
+            renta_mensual: 950.0
+            fecha_inicio: '2026-04-01'
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    TxtJsonRequest:
+      type: object
+      required:
+      - content
+      - schema_id
+      properties:
+        content:
+          type: string
+          description: 'Texto plano, HTML o XML ya procesado. No es un archivo. Máximo 300.000 caracteres.
+
+            '
+          example: <html><body><h1>Factura F-2026-00456</h1></body></html>
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo txt-json.
+
+            '
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: 'API key secreta de servidor. Tiene prioridad sobre Authorization si se envían ambos headers.
+
+        '
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Forma alternativa de enviar la API key como Bearer token.
+x-refined-from:
+- claix-dev-openapi.yaml
+- claix-dev-openapi.yml

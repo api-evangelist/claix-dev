@@ -1,0 +1,487 @@
+openapi: 3.2.0
+info:
+  title: Claix Dev Schemas API
+  version: 1.8.2
+  description: 'Operations tagged Schemas across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://claix.dev/api
+  description: Producción (dominio público Claix)
+security:
+- ApiKeyAuth: []
+- BearerAuth: []
+tags:
+- name: Schemas
+  description: Consulta de los schemas creados en la cuenta
+paths:
+  /schemas:
+    get:
+      operationId: listSchemas
+      tags:
+      - Schemas
+      summary: Devuelve todos los schemas de la cuenta asociada al API key
+      description: 'Endpoint de solo lectura, sin body ni parámetros. Llama `GET https://claix.dev/api/schemas`. Dado un API key válido, devuelve la lista completa de schemas creados por el usuario dueño de esa key, con toda su información (id, nombre, tipo y definición), ordenados del más reciente al más antiguo. Esta llamada es gratuita: no se factura ni consume el cupo de extracciones.'
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/schemas/get-schemas
+      responses:
+        '200':
+          description: Lista de schemas obtenida correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchemasListResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite GET)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://claix.dev/api
+      description: Producción (dominio público Claix)
+  /create-schema:
+    post:
+      operationId: createSchema
+      tags:
+      - Schemas
+      summary: Crea un schema en la cuenta asociada al API key
+      description: 'Llama `POST https://claix.dev/api/create-schema`. Crea un schema listo para usar en los endpoints de extracción o Modo Agente. `name`, `type` y `schema_definition` son obligatorios. Si `is_agent_mode` es true (o se envía `agent_definition`), hay que incluir `agent_definition` con al menos un parámetro. El tipo json-excel no admite Modo Agente. Esta llamada es gratuita: no se factura ni consume el cupo de extracciones.'
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/schemas/create-schema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSchemaRequest'
+            example:
+              name: DNI cliente
+              type: img-json
+              schema_definition:
+                nombre_dni:
+                  type: string
+                  description: nombre de la persona del dni
+                numero_dni:
+                  type: string
+                  description: numero de dni
+                fecha_caducidad:
+                  type: string
+                  description: fecha de caducidad del dni
+              is_agent_mode: true
+              agent_definition:
+                edad:
+                  type: integer
+                  description: Edad exacta de la persona pero restale 3
+                calidad_foto:
+                  type: closed
+                  options:
+                  - buena calidad
+                  - mala calidad
+                  - ilegible
+                  - perfecta
+                  description: La calidad de la imagen y la legibilidad de sus datos
+                es_mayor_edad:
+                  type: boolean
+                  description: Es mayor de edad actualmente la persona del dni?
+                fecha_vencimiento:
+                  type: string
+                  description: Cuado le vence el dni y cuanto tiempo queda para ello
+              resumen_agent: Extrae los datos visibles del DNI y razona sobre caducidad.
+      responses:
+        '201':
+          description: Schema creado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSchemaResponse'
+        '400':
+          description: Payload inválido (campos faltantes o definición incorrecta)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://claix.dev/api
+      description: Producción (dominio público Claix)
+  /delete-schema:
+    post:
+      operationId: deleteSchema
+      tags:
+      - Schemas
+      summary: Elimina un schema de la cuenta asociada al API key
+      description: 'Llama `POST https://claix.dev/api/delete-schema`. Borra el schema identificado por `schema_id` si pertenece a la cuenta del API key. También admite DELETE y el query param `?schema_id=`. Esta llamada es gratuita: no se factura ni consume el cupo de extracciones.'
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/schemas/delete-schema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteSchemaRequest'
+            example:
+              schema_id: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+      responses:
+        '200':
+          description: Schema eliminado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteSchemaResponse'
+        '400':
+          description: Falta schema_id o no es un UUID válido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST o DELETE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    servers:
+    - url: https://claix.dev/api
+      description: Producción (dominio público Claix)
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    SchemasListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        total_schemas:
+          type: integer
+          description: Número total de schemas devueltos.
+          example: 5
+        schemas:
+          type: array
+          items:
+            $ref: '#/components/schemas/SchemaItem'
+    AgentFieldDefinition:
+      type: object
+      required:
+      - type
+      - description
+      properties:
+        type:
+          type: string
+          enum:
+          - boolean
+          - string
+          - closed
+          - integer
+          description: Tipo de respuesta esperada para este campo agente.
+        description:
+          type: string
+          description: Instrucción semántica para el modelo en la fase agente.
+        options:
+          type: array
+          items:
+            type: string
+          description: 'Valores permitidos cuando type es "closed"; el modelo debe devolver exactamente una de estas opciones.
+
+            '
+    SchemaFieldDefinition:
+      type: object
+      required:
+      - type
+      - description
+      properties:
+        type:
+          type: string
+          enum:
+          - string
+          - integer
+          - number
+          - boolean
+          description: Tipo JSON del campo extraído.
+        description:
+          type: string
+          description: Descripción semántica que ayuda a localizar el valor en el documento.
+    DeleteSchemaResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        deleted:
+          type: boolean
+          example: true
+        id:
+          type: string
+          format: uuid
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+    SchemaItem:
+      type: object
+      description: Un schema tal como está almacenado en la cuenta.
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+        name:
+          type: string
+          example: Facturas Trimestrales
+        type:
+          type: string
+          description: 'Dirección de conversión para la que está pensado este schema.
+
+            '
+          enum:
+          - excel-json
+          - json-excel
+          - pdf-json
+          - doc-json
+          - img-json
+          - txt-json
+          example: pdf-json
+        schema_definition:
+          type: object
+          description: 'Definición de las propiedades del schema (jsonb), cada una con su "type" y, opcionalmente, una "description" que ayuda al reconocimiento semántico en los endpoints de conversión.
+
+            '
+          additionalProperties: true
+          example:
+            nif_cliente:
+              type: string
+              description: NIF o CIF del cliente facturado.
+        is_agent_mode:
+          type: boolean
+          description: 'Si es true, el schema puede usarse con los endpoints /agent/*-json.
+
+            '
+          example: false
+        agent_definition:
+          type:
+          - object
+          - 'null'
+          description: 'Definición de campos para la fase Modo Agente (solo relevante si is_agent_mode es true). Cada clave es el nombre del campo en agent_data.
+
+            '
+          additionalProperties:
+            $ref: '#/components/schemas/AgentFieldDefinition'
+          example:
+            clausula_penalizacion:
+              type: boolean
+              description: Indica si el contrato incluye cláusula de penalización.
+        resumen_agent:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          description: 'Texto opcional con instrucciones adicionales para el resumen o razonamiento del Modo Agente.
+
+            '
+          example: null
+        window_context:
+          type: boolean
+          description: 'Si es true, el schema mantiene una ventana temporal de contexto activa sobre el documento procesado.
+
+            '
+          example: false
+        window_time:
+          oneOf:
+          - type: number
+            enum:
+            - 5
+            - 10
+            - 15
+            - 30
+            - 45
+            - 60
+            - 90
+            - 120
+            - 180
+            - 240
+            - 360
+            - 480
+            - 720
+            - 1440
+            - 0
+          - type: string
+            enum:
+            - infinity
+          description: 'Duración de la ventana en minutos cuando window_context es true. Valores admitidos: 5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 360, 480, 720, 1440. También puedes enviar 0 o la cadena `infinity` para ventana sin caducidad; en ese caso la cuenta debe tener modo persistente activo (users.infinity_mode = true). Se guarda como window_context true y window_time 0.
+
+            '
+          example: null
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-08-06T09:51:41.372964+00:00'
+    DeleteSchemaRequest:
+      type: object
+      required:
+      - schema_id
+      properties:
+        schema_id:
+          type: string
+          format: uuid
+          description: UUID del schema a eliminar.
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+    CreateSchemaRequest:
+      type: object
+      required:
+      - name
+      - type
+      - schema_definition
+      properties:
+        name:
+          type: string
+          maxLength: 200
+          description: Nombre visible del schema.
+          example: DNI cliente
+        type:
+          type: string
+          enum:
+          - excel-json
+          - json-excel
+          - pdf-json
+          - doc-json
+          - img-json
+          - txt-json
+          description: Tipo de conversión para el que se usará este schema.
+          example: img-json
+        schema_definition:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/SchemaFieldDefinition'
+          description: 'Campos a extraer. Cada clave es el nombre de la propiedad JSON resultante; cada valor tiene type (string, integer, number o boolean) y description.
+
+            '
+        is_agent_mode:
+          type: boolean
+          description: 'Activa el Modo Agente. Si omites este campo pero envías agent_definition, se asume true.
+
+            '
+          example: true
+        agent_definition:
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/AgentFieldDefinition'
+          description: 'Obligatorio si is_agent_mode es true. Cada clave es el nombre del campo en agent_data. Types: boolean, string, closed, integer. Si type es closed, options es obligatorio.
+
+            '
+        resumen_agent:
+          type:
+          - string
+          - 'null'
+          maxLength: 500
+          description: Instrucción opcional para la fase de razonamiento.
+        window_context:
+          type: boolean
+          description: 'Activa la ventana temporal de contexto. Por defecto false.
+
+            '
+          example: false
+        window_time:
+          oneOf:
+          - type: number
+            enum:
+            - 5
+            - 10
+            - 15
+            - 30
+            - 45
+            - 60
+            - 90
+            - 120
+            - 180
+            - 240
+            - 360
+            - 480
+            - 720
+            - 1440
+            - 0
+          - type: string
+            enum:
+            - infinity
+          description: 'Obligatorio si window_context es true. Duración en minutos. Valores admitidos: 5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 360, 480, 720, 1440. También puedes enviar 0 o la cadena `infinity` para ventana sin caducidad; requiere modo persistente activo en la cuenta. Se persiste como window_time 0.
+
+            '
+          example: null
+    CreateSchemaResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema:
+          $ref: '#/components/schemas/SchemaItem'
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: 'API key secreta de servidor. Tiene prioridad sobre Authorization si se envían ambos headers.
+
+        '
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Forma alternativa de enviar la API key como Bearer token.
+x-refined-from:
+- claix-dev-openapi.yaml
+- claix-dev-openapi.yml

@@ -1,0 +1,706 @@
+openapi: 3.2.0
+info:
+  title: Claix Dev Modo Agente API
+  version: 1.8.2
+  description: 'Operations tagged Modo Agente across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
+servers:
+- url: https://claix.dev/api
+  description: Producción (dominio público Claix)
+security:
+- ApiKeyAuth: []
+- BearerAuth: []
+tags:
+- name: Modo Agente
+  description: 'Extracción estructurada más razonamiento semántico en una sola llamada. Requiere schema con is_agent_mode activado y agent_definition configurada. URLs públicas: POST /agent/excel-json, /agent/pdf-json, /agent/doc-json, /agent/img-json, /agent/txt-json (documentación humana en /documentation/agent/*).'
+paths:
+  /agent/excel-json:
+    servers:
+    - url: https://claix.dev
+      description: Base pública Modo Agente
+    post:
+      operationId: agentExcelToJson
+      tags:
+      - Modo Agente
+      summary: Excel/CSV a JSON con extracción y razonamiento Modo Agente
+      description: Equivalente a POST /api/excel-json seguido de una fase agente con Gemini. Devuelve la respuesta de extracción (data, mapa_columnas, etc.) más agent_data según agent_definition. El schema debe tener is_agent_mode activado. Misma petición multipart (file + schema_id) y mismos códigos de error que /api/excel-json; además puede devolver 400 si el schema no tiene Modo Agente o agent_definition inválida, o 502 si falla la fase agente.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ExcelJsonRequest'
+      responses:
+        '200':
+          description: Extracción y fase agente completadas correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentExcelJsonSuccessResponse'
+        '400':
+          description: 'Petición inválida, schema sin Modo Agente activado, o agent_definition inválida
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: No se encontró correspondencia entre columnas y schema
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: 'Fallo del servicio de IA (extracción o fase agente Gemini)
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /agent/pdf-json:
+    servers:
+    - url: https://claix.dev
+      description: Base pública Modo Agente
+    post:
+      operationId: agentPdfToJson
+      tags:
+      - Modo Agente
+      summary: PDF a JSON con extracción y razonamiento Modo Agente
+      description: 'Equivalente a POST /api/pdf-json más fase agente. Devuelve data[] con la extracción del schema principal y agent_data con evaluaciones tipadas (booleanos, enteros, strings, opciones cerradas). Requiere is_agent_mode en el schema. Tamaño máximo del PDF: 15 MB.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PdfJsonRequest'
+      responses:
+        '200':
+          description: Extracción y fase agente completadas correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentPdfJsonSuccessResponse'
+        '400':
+          description: 'Petición inválida, schema sin Modo Agente, o agent_definition inválida
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: El PDF supera el tamaño máximo admitido (15 MB)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: 'No se pudo extraer datos del PDF o imagen ilegible en fase previa
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA (extracción o fase agente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /agent/doc-json:
+    servers:
+    - url: https://claix.dev
+      description: Base pública Modo Agente
+    post:
+      operationId: agentDocToJson
+      tags:
+      - Modo Agente
+      summary: Documento a JSON con extracción y razonamiento Modo Agente
+      description: 'Equivalente a POST /api/doc-json más fase agente. Devuelve data[] y agent_data. Requiere is_agent_mode. Formatos admitidos: .docx, .txt, .md, .rtf. Tamaño máximo: 10 MB; texto extraído máx. 300.000 caracteres.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocJsonRequest'
+      responses:
+        '200':
+          description: Extracción y fase agente completadas correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentDocJsonSuccessResponse'
+        '400':
+          description: 'Petición inválida, schema sin Modo Agente, o agent_definition inválida
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Archivo o texto extraído supera límites admitidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: No se pudo extraer datos del documento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA (extracción o fase agente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /agent/img-json:
+    servers:
+    - url: https://claix.dev
+      description: Base pública Modo Agente
+    post:
+      operationId: agentImgToJson
+      tags:
+      - Modo Agente
+      summary: Imagen a JSON con extracción y razonamiento Modo Agente
+      description: 'Equivalente a POST /api/img-json más fase agente. Devuelve data[] y agent_data. Requiere is_agent_mode. Formatos: JPEG, PNG, WebP, HEIC/HEIF. Tamaño máximo: 15 MB.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ImgJsonRequest'
+      responses:
+        '200':
+          description: Extracción y fase agente completadas correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentImgJsonSuccessResponse'
+        '400':
+          description: 'Petición inválida, schema sin Modo Agente, o agent_definition inválida
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: La imagen supera el tamaño máximo admitido (15 MB)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Imagen ilegible o sin datos extraíbles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA (extracción o fase agente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /agent/txt-json:
+    servers:
+    - url: https://claix.dev
+      description: Base pública Modo Agente
+    post:
+      operationId: agentTxtToJson
+      tags:
+      - Modo Agente
+      summary: Txt / HTML / XML a JSON con extracción y razonamiento Modo Agente
+      description: 'Equivalente a POST /api/txt-json más fase agente. Recibe content + schema_id (multipart). Devuelve data[] y agent_data. Requiere is_agent_mode. Máximo 300.000 caracteres. URL pública: POST https://claix.dev/agent/txt-json. Misma tarifa que extracción txt-json (€0,10 por llamada exitosa tras el free tier).'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TxtJsonRequest'
+      responses:
+        '200':
+          description: Extracción y fase agente completadas correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentDocJsonSuccessResponse'
+        '400':
+          description: Petición inválida, schema sin Modo Agente, o agent_definition inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: El contenido supera 300.000 caracteres
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: No se pudo extraer datos del contenido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA (extracción o fase agente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    DocJsonRequest:
+      type: object
+      required:
+      - file
+      - schema_id
+      properties:
+        file:
+          type: string
+          format: binary
+          description: 'Archivo de documento a analizar. Formatos admitidos: .docx (application/vnd.openxmlformats-officedocument.wordprocessingml.document), .txt (text/plain), .md (text/markdown) y .rtf (application/rtf). El formato legacy .doc (application/msword) NO está soportado. Tamaño máximo admitido: 10 MB.
+
+            '
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "Documento a JSON".
+
+            '
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    TxtJsonRequest:
+      type: object
+      required:
+      - content
+      - schema_id
+      properties:
+        content:
+          type: string
+          description: 'Texto plano, HTML o XML ya procesado. No es un archivo. Máximo 300.000 caracteres.
+
+            '
+          example: <html><body><h1>Factura F-2026-00456</h1></body></html>
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo txt-json.
+
+            '
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    AgentExcelJsonSuccessResponse:
+      allOf:
+      - $ref: '#/components/schemas/ExcelJsonSuccessResponse'
+      - type: object
+        required:
+        - agent_data
+        properties:
+          agent_data:
+            $ref: '#/components/schemas/AgentData'
+    PdfJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Facturas de Proveedores
+        total_registros:
+          type: integer
+          description: 'Siempre 1 en este endpoint: el documento completo se trata como una única fuente de datos, no como una tabla de múltiples filas.
+
+            '
+          example: 1
+        data:
+          type: array
+          description: 'Contiene exactamente un objeto con los datos extraídos del PDF, según las propiedades definidas en el schema. Los datos no encontrados en el documento se devuelven como null.
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - numero_factura: F-2026-00456
+            fecha_emision: '2026-03-14'
+            proveedor: Suministros Industriales del Ebro S.L.
+            importe_total: 1284.5
+            moneda: EUR
+    AgentPdfJsonSuccessResponse:
+      allOf:
+      - $ref: '#/components/schemas/PdfJsonSuccessResponse'
+      - type: object
+        required:
+        - agent_data
+        properties:
+          agent_data:
+            $ref: '#/components/schemas/AgentData'
+    AgentDocJsonSuccessResponse:
+      allOf:
+      - $ref: '#/components/schemas/DocJsonSuccessResponse'
+      - type: object
+        required:
+        - agent_data
+        properties:
+          agent_data:
+            $ref: '#/components/schemas/AgentData'
+    ImgJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Facturas de Proveedores
+        total_registros:
+          type: integer
+          description: 'Siempre 1 en este endpoint: la imagen completa se trata como una única fuente de datos, no como una tabla de múltiples filas.
+
+            '
+          example: 1
+        data:
+          type: array
+          description: 'Contiene exactamente un objeto con los datos extraídos de la imagen, según las propiedades definidas en el schema. Los datos no encontrados se devuelven como null.
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - numero_factura: F-2026-00456
+            fecha_emision: '2026-03-14'
+            proveedor: Suministros Industriales del Ebro S.L.
+            importe_total: 1284.5
+            moneda: EUR
+    ExcelJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Leads de Ventas
+        total_filas_procesadas:
+          type: integer
+          description: Número de filas de datos transformadas.
+          example: 247
+        mapa_columnas:
+          type: object
+          description: 'Diccionario que muestra qué columna original se emparejó con qué propiedad del schema.
+
+            '
+          additionalProperties:
+            type: string
+          example:
+            Nom_cliente: nombre_completo
+            Tlf: telefono_movil
+            mail de contacto: email_contacto
+        data:
+          type: array
+          description: Registros transformados según el schema.
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - nombre_completo: Ana María Gómez
+            cargo: CEO & Founder
+            empresa: TechSolutions
+            email_contacto: ana.gomez@techsolutions.com
+            telefono_movil: +1 (555) 019-2231
+    PdfJsonRequest:
+      type: object
+      required:
+      - file
+      - schema_id
+      properties:
+        file:
+          type: string
+          format: binary
+          description: 'Archivo PDF a analizar (texto seleccionable o escaneado). Tamaño máximo admitido: 15 MB.
+
+            '
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "PDF a JSON".
+
+            '
+          example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    AgentImgJsonSuccessResponse:
+      allOf:
+      - $ref: '#/components/schemas/ImgJsonSuccessResponse'
+      - type: object
+        required:
+        - agent_data
+        properties:
+          agent_data:
+            $ref: '#/components/schemas/AgentData'
+    DocJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Contratos de Alquiler
+        total_registros:
+          type: integer
+          description: 'Siempre 1 en este endpoint: el documento completo se trata como una única fuente de datos, no como una tabla de múltiples filas.
+
+            '
+          example: 1
+        data:
+          type: array
+          description: 'Contiene exactamente un objeto con los datos extraídos del documento, según las propiedades definidas en el schema. Los datos no encontrados en el texto se devuelven como null.
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - nombre_arrendatario: Laura Fernández Ruiz
+            nombre_arrendador: Inversiones Delta S.L.
+            direccion_inmueble: Calle Mayor 14, 3ºB, Madrid
+            renta_mensual: 950.0
+            fecha_inicio: '2026-04-01'
+    ImgJsonRequest:
+      type: object
+      required:
+      - file
+      - schema_id
+      properties:
+        file:
+          type: string
+          format: binary
+          description: 'Imagen a analizar. Formatos admitidos: .jpeg, .jpg, .png, .webp, .heic y .heif. Tamaño máximo admitido: 15 MB.
+
+            '
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "Imagen a JSON".
+
+            '
+          example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    AgentData:
+      type: object
+      description: 'Respuestas tipadas de la fase Modo Agente según agent_definition del schema. Las claves coinciden con los nombres definidos en el dashboard; los tipos dependen de cada campo (boolean, integer, string u opción cerrada). Opcionalmente puede incluir resumen_agent como string si está configurado en el schema.
+
+        '
+      additionalProperties: true
+      example:
+        clausula_penalizacion: true
+        salario: 55000
+        es_parcial: false
+        resumen_contrato: Contrato indefinido con jornada completa.
+    ExcelJsonRequest:
+      type: object
+      required:
+      - file
+      - schema_id
+      properties:
+        file:
+          type: string
+          format: binary
+          description: Archivo Excel (.xlsx) o CSV (.csv) a transformar.
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "Excel/CSV a JSON".
+
+            '
+          example: 8f14e45f-ceea-4e6f-8b23-1e2d3c4b5a6f
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: 'API key secreta de servidor. Tiene prioridad sobre Authorization si se envían ambos headers.
+
+        '
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Forma alternativa de enviar la API key como Bearer token.
+x-refined-from:
+- claix-dev-openapi.yaml
+- claix-dev-openapi.yml
