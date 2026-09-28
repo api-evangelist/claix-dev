@@ -4,13 +4,11 @@ status: published
 source: https://www.claix.dev/documentation/mcp
 tools_source: https://www.claix.dev/mcp (anonymous JSON-RPC tools/list, HTTP 200, 2026-09-19)
 llms_source: https://www.claix.dev/llms.txt
-description: >-
-  Claix ships a hosted, remote MCP server on its own domain. The documented URL is
-  https://claix.dev/mcp; the apex answers 308 to https://www.claix.dev/mcp, which is the URL an
-  MCP client actually ends up POSTing to. tools/list, prompts/list, resources/list and initialize
-  all answer anonymously (tool CALLS require the x-api-key header or an api_key argument). The
-  full tools/list body, with every inputSchema, outputSchema and annotation, is saved verbatim in
-  claix-dev-mcp-tools-list.json.
+description: Claix ships a hosted, remote MCP server on its own domain. The documented URL is https://claix.dev/mcp;
+  the apex answers 308 to https://www.claix.dev/mcp, which is the URL an MCP client actually ends up POSTing
+  to. tools/list, prompts/list, resources/list and initialize all answer anonymously (tool CALLS require
+  the x-api-key header or an api_key argument). The full tools/list body, with every inputSchema, outputSchema
+  and annotation, is saved verbatim in claix-dev-mcp-tools-list.json.
 deployment:
   mode: remote
   endpoint: https://www.claix.dev/mcp
@@ -20,74 +18,215 @@ deployment:
   auth: api-key
   verified: probed
   transports:
-    - streamable-http    # POST /mcp, Accept: application/json, text/event-stream
-    - sse                # GET /mcp + POST /mcp/message?sessionId=... (legacy, via mcp-remote)
+  - streamable-http
+  - sse
   listings:
-    - registry: smithery
-      qualified_name: info-f4xz/claix
-      url: https://smithery.ai/server/info-f4xz/claix
-      deployment_url: https://claix--info-f4xz.run.tools
-      install: npx -y @smithery/cli run info-f4xz/claix
-      note: >-
-        Smithery-hosted proxy of the same server; the registry record
-        (registry.smithery.ai/servers/info-f4xz/claix, 200) maps its APIKEY config field to the
-        x-api-key header.
+  - registry: smithery
+    qualified_name: info-f4xz/claix
+    url: https://smithery.ai/server/info-f4xz/claix
+    deployment_url: https://claix--info-f4xz.run.tools
+    install: npx -y @smithery/cli run info-f4xz/claix
+    note: Smithery-hosted proxy of the same server; the registry record (registry.smithery.ai/servers/info-f4xz/claix,
+      200) maps its APIKEY config field to the x-api-key header.
 server:
   name: claix
   version_observed:
-    initialize_serverInfo: 1.7.0          # live initialize response, 2026-09-19
-    docs_page: 1.9.0                      # https://www.claix.dev/documentation/mcp
-    well_known_server_card: 1.5.0         # well-known/claix-dev-mcp-server-card.json
+    initialize_serverInfo: 1.7.0
+    docs_page: 1.9.0
+    well_known_server_card: 1.5.0
   protocol_version: '2025-06-18'
-  capabilities: {tools: {listChanged: true}, prompts: {listChanged: true}, resources: {listChanged: true}, completions: {}}
+  capabilities:
+    tools:
+      listChanged: true
+    prompts:
+      listChanged: true
+    resources:
+      listChanged: true
+    completions: {}
   static_metadata: https://claix.dev/.well-known/mcp/server-card.json
 auth:
-  methods: [apikey]
+  methods:
+  - apikey
   apikey:
     header: x-api-key
     fallback: api_key argument on every tool (for clients that cannot send custom headers)
     note: The same key authenticates REST, A2A and MCP. No OAuth; /.well-known/oauth-* all 404.
 tool_count: 17
-tool_count_note: >-
-  The live tools/list returned 17 tools on 2026-09-19. The docs page and llms.txt advertise
-  20, the three not served being claix.spaces.create, claix.spaces.delete and
-  claix.space_context.ask (documented in section 6 of the MCP page). Recorded as documented_only
-  below rather than counted.
+tool_count_note: The live tools/list returned 17 tools on 2026-09-19. The docs page and llms.txt advertise
+  20, the three not served being claix.spaces.create, claix.spaces.delete and claix.space_context.ask
+  (documented in section 6 of the MCP page). Recorded as documented_only below rather than counted.
 tools:
-- {name: claix.schemas.list, category: schemas, rest: listSchemas, annotations: {readOnlyHint: true, destructiveHint: false, idempotentHint: true}}
-- {name: claix.schemas.create, category: schemas, rest: createSchema, annotations: {readOnlyHint: false, destructiveHint: false, idempotentHint: false}}
-- {name: claix.schemas.delete, category: schemas, rest: deleteSchema, annotations: {readOnlyHint: false, destructiveHint: true, idempotentHint: true}}
-- {name: claix.extract.excel, category: extraction, rest: excelToJson}
-- {name: claix.extract.pdf, category: extraction, rest: pdfToJson}
-- {name: claix.extract.doc, category: extraction, rest: docToJson}
-- {name: claix.extract.image, category: extraction, rest: imgToJson}
-- {name: claix.extract.text, category: extraction, rest: txtToJson}
-- {name: claix.convert.json_to_excel, category: conversion, rest: jsonToExcel}
-- {name: claix.agent.excel, category: agent-mode, rest: agentExcelToJson}
-- {name: claix.agent.pdf, category: agent-mode, rest: agentPdfToJson}
-- {name: claix.agent.doc, category: agent-mode, rest: agentDocToJson}
-- {name: claix.agent.image, category: agent-mode, rest: agentImgToJson}
-- {name: claix.agent.text, category: agent-mode, rest: agentTxtToJson}
-- {name: claix.window_context.get, category: context-window, rest: getDocument}
-- {name: claix.window_context.ask, category: context-window, rest: documentContextAsk}
-- {name: claix.document.delete, category: context-window, rest: deleteDocument, annotations: {readOnlyHint: false, destructiveHint: true, idempotentHint: true}}
+- name: claix.schemas.list
+  category: schemas
+  rest: listSchemas
+  annotations:
+    readOnlyHint: true
+    destructiveHint: false
+    idempotentHint: true
+  description: List the Claix schemas available for the authenticated account. Returns id, name, type,
+    schema_definition, is_agent_mode, and agent_definition. Call this first whenever you need a schema_id
+    before claix.extract.* or claix.agent.* tools.
+- name: claix.schemas.create
+  category: schemas
+  rest: createSchema
+  annotations:
+    readOnlyHint: false
+    destructiveHint: false
+    idempotentHint: false
+  description: 'Create a Claix schema (POST /api/create-schema). Requires name, type (excel-json, json-excel,
+    pdf-json, doc-json, img-json, txt-json) and schema_definition. Optional: is_agent_mode, agent_definition,
+    resumen_agent, window_context, window_time.'
+- name: claix.schemas.delete
+  category: schemas
+  rest: deleteSchema
+  annotations:
+    readOnlyHint: false
+    destructiveHint: true
+    idempotentHint: true
+  description: Delete a Claix schema owned by the API key (POST /api/delete-schema). Requires schema_id.
+- name: claix.extract.excel
+  category: extraction
+  rest: excelToJson
+  description: Extract structured JSON from an Excel (.xlsx) or CSV file using a Claix excel-json schema.
+    Processes the first sheet only. Returns typed JSON matching the schema. Use when the user attaches
+    a spreadsheet or CSV.
+- name: claix.extract.pdf
+  category: extraction
+  rest: pdfToJson
+  description: Extract structured JSON from a PDF (text or scanned, max 15 MB) using a Claix pdf-json
+    schema. Returns a single JSON object in data[]. Use for invoices, contracts, forms, or reports.
+- name: claix.extract.doc
+  category: extraction
+  rest: docToJson
+  description: Extract structured JSON from a Word document (.docx, .txt, .md, .rtf; max 10 MB) using
+    a Claix doc-json schema. Legacy .doc is not supported.
+- name: claix.extract.image
+  category: extraction
+  rest: imgToJson
+  description: Extract structured JSON from a visible image (JPEG, PNG, WebP, HEIC/HEIF; max 15 MB) using
+    a Claix img-json schema. Use for photos of documents, tickets, or labels.
+- name: claix.extract.text
+  category: extraction
+  rest: txtToJson
+  description: Extract structured JSON from already processed plain text, HTML, or XML using a Claix txt-json
+    schema. Send the payload in the content field (no file). Max 300,000 characters. POST /api/txt-json.
+- name: claix.convert.json_to_excel
+  category: conversion
+  rest: jsonToExcel
+  description: Convert JSON to an Excel .xlsx file using a Claix json-excel schema. Provide json_data
+    inline or file_base64 with a .json file. Returns base64-encoded xlsx on success.
+- name: claix.agent.excel
+  category: agent-mode
+  rest: agentExcelToJson
+  description: Run Excel/CSV extraction plus Agent mode semantic reasoning. Requires is_agent_mode on
+    the schema. Returns data[] and agent_data with typed answers from agent_definition.
+- name: claix.agent.pdf
+  category: agent-mode
+  rest: agentPdfToJson
+  description: Run PDF extraction plus Agent mode reasoning. Requires is_agent_mode. Returns structured
+    data[] and agent_data for business rules, booleans, or summaries defined in the schema.
+- name: claix.agent.doc
+  category: agent-mode
+  rest: agentDocToJson
+  description: Run document extraction plus Agent mode reasoning on .docx/.txt/.md/.rtf. Requires is_agent_mode.
+    Returns data[] and agent_data.
+- name: claix.agent.image
+  category: agent-mode
+  rest: agentImgToJson
+  description: Run image extraction plus Agent mode reasoning. Requires is_agent_mode. Returns data[]
+    and agent_data from visible content.
+- name: claix.agent.text
+  category: agent-mode
+  rest: agentTxtToJson
+  description: Run text/HTML/XML extraction plus Agent mode reasoning. Requires is_agent_mode. Send content
+    (no file). Returns data[] and agent_data. POST /agent/txt-json.
+- name: claix.window_context.get
+  category: context-window
+  rest: getDocument
+  description: Retrieve raw content and metadata from a persisted document (GET /window-context/{document_id}).
+    Requires document_id from an extraction with window_context. Returns success, document_id, file_name,
+    schema_id, processed_at, and content. Free call.
+- name: claix.window_context.ask
+  category: context-window
+  rest: documentContextAsk
+  description: Ask up to 5 questions about a persisted document (POST /window-context/{document_id}).
+    Requires document_id from an extraction with window_context. Each question max 400 characters. Returns
+    user_ask and ia_response (null if not in the document).
+- name: claix.document.delete
+  category: context-window
+  rest: deleteDocument
+  annotations:
+    readOnlyHint: false
+    destructiveHint: true
+    idempotentHint: true
+  description: Delete a persisted document by document_id (DELETE /delete-document/{document_id}). No
+    body or query params. Returns { document_id } on success. Irreversible. Free call. 404 if the document
+    does not exist, is foreign, or was already purged.
 documented_only:
-- {name: claix.spaces.create, category: knowledge-spaces, rest: createSpace, note: in docs section 6, absent from live tools/list 2026-09-19}
-- {name: claix.spaces.delete, category: knowledge-spaces, rest: deleteSpace, note: in docs section 6, absent from live tools/list 2026-09-19}
-- {name: claix.space_context.ask, category: knowledge-spaces, rest: spaceContextAsk, note: in docs section 6, absent from live tools/list 2026-09-19}
+- name: claix.spaces.create
+  category: knowledge-spaces
+  rest: createSpace
+  note: in docs section 6
+  absent from live tools/list 2026-09-19: null
+- name: claix.spaces.delete
+  category: knowledge-spaces
+  rest: deleteSpace
+  note: in docs section 6
+  absent from live tools/list 2026-09-19: null
+- name: claix.space_context.ask
+  category: knowledge-spaces
+  rest: spaceContextAsk
+  note: in docs section 6
+  absent from live tools/list 2026-09-19: null
 prompts:
 - workflow.discover-and-extract
 - workflow.agent-document-analysis
 - workflow.invoice-pdf
 - workflow.window-context-ask
 resources:
-- {uri: 'claix://docs/mcp', name: mcp-documentation}
-- {uri: 'claix://docs/openapi', name: openapi-spec}
-- {uri: 'claix://docs/tools', name: tool-catalog}
-clients_documented: [Cursor, Claude Desktop (via mcp-remote), Claude Code, Windsurf, Cline, Continue, Zed, Smithery, Lovable, Replit Agent, ChatGPT connectors, n8n, Make, LangGraph]
+- uri: claix://docs/mcp
+  name: mcp-documentation
+- uri: claix://docs/openapi
+  name: openapi-spec
+- uri: claix://docs/tools
+  name: tool-catalog
+clients_documented:
+- Cursor
+- Claude Desktop (via mcp-remote)
+- Claude Code
+- Windsurf
+- Cline
+- Continue
+- Zed
+- Smithery
+- Lovable
+- Replit Agent
+- ChatGPT connectors
+- n8n
+- Make
+- LangGraph
 x-evidence:
-  - {url: 'https://www.claix.dev/mcp', method: 'POST tools/list', http_status: 200, content_type: application/json, fetched: '2026-09-19'}
-  - {url: 'https://www.claix.dev/mcp', method: 'POST initialize', http_status: 200, serverInfo: 'claix 1.7.0', fetched: '2026-09-19'}
-  - {url: 'https://claix.dev/mcp', method: 'POST tools/list', http_status: 308, location: 'https://www.claix.dev/mcp', fetched: '2026-09-19'}
-  - {url: 'https://claix.dev/.well-known/mcp/server-card.json', http_status: 200, content_type: application/json, fetched: '2026-09-19'}
-  - {url: 'https://registry.smithery.ai/servers/info-f4xz/claix', http_status: 200, fetched: '2026-09-19'}
+- url: https://www.claix.dev/mcp
+  method: POST tools/list
+  http_status: 200
+  content_type: application/json
+  fetched: '2026-09-19'
+- url: https://www.claix.dev/mcp
+  method: POST initialize
+  http_status: 200
+  serverInfo: claix 1.7.0
+  fetched: '2026-09-19'
+- url: https://claix.dev/mcp
+  method: POST tools/list
+  http_status: 308
+  location: https://www.claix.dev/mcp
+  fetched: '2026-09-19'
+- url: https://claix.dev/.well-known/mcp/server-card.json
+  http_status: 200
+  content_type: application/json
+  fetched: '2026-09-19'
+- url: https://registry.smithery.ai/servers/info-f4xz/claix
+  http_status: 200
+  fetched: '2026-09-19'
+descriptions_source: live tools/list (authorship probe or saved capture); filled by backfill-tools-from-authorship.py
+  --descriptions, 2026-09-28
