@@ -1,8 +1,8 @@
 openapi: 3.2.0
 info:
-  title: Claix Dev Schemas API
+  title: Claix Schemas API
+  description: Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make).
   version: 1.8.2
-  description: 'Operations tagged Schemas across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://claix.dev/api
   description: Producción (dominio público Claix)
@@ -48,9 +48,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://claix.dev/api
-      description: Producción (dominio público Claix)
   /create-schema:
     post:
       operationId: createSchema
@@ -131,9 +128,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://claix.dev/api
-      description: Producción (dominio público Claix)
   /delete-schema:
     post:
       operationId: deleteSchema
@@ -189,22 +183,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://claix.dev/api
-      description: Producción (dominio público Claix)
 components:
   schemas:
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
-          type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
     SchemasListResponse:
       type: object
       properties:
@@ -219,60 +199,6 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/SchemaItem'
-    AgentFieldDefinition:
-      type: object
-      required:
-      - type
-      - description
-      properties:
-        type:
-          type: string
-          enum:
-          - boolean
-          - string
-          - closed
-          - integer
-          description: Tipo de respuesta esperada para este campo agente.
-        description:
-          type: string
-          description: Instrucción semántica para el modelo en la fase agente.
-        options:
-          type: array
-          items:
-            type: string
-          description: 'Valores permitidos cuando type es "closed"; el modelo debe devolver exactamente una de estas opciones.
-
-            '
-    SchemaFieldDefinition:
-      type: object
-      required:
-      - type
-      - description
-      properties:
-        type:
-          type: string
-          enum:
-          - string
-          - integer
-          - number
-          - boolean
-          description: Tipo JSON del campo extraído.
-        description:
-          type: string
-          description: Descripción semántica que ayuda a localizar el valor en el documento.
-    DeleteSchemaResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        deleted:
-          type: boolean
-          example: true
-        id:
-          type: string
-          format: uuid
-          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
     SchemaItem:
       type: object
       description: Un schema tal como está almacenado en la cuenta.
@@ -371,16 +297,79 @@ components:
           type: string
           format: date-time
           example: '2026-08-06T09:51:41.372964+00:00'
-    DeleteSchemaRequest:
+    CreateSchemaResponse:
       type: object
-      required:
-      - schema_id
       properties:
-        schema_id:
+        success:
+          type: boolean
+          example: true
+        schema:
+          $ref: '#/components/schemas/SchemaItem'
+    DeleteSchemaResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        deleted:
+          type: boolean
+          example: true
+        id:
           type: string
           format: uuid
-          description: UUID del schema a eliminar.
           example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+    SchemaFieldDefinition:
+      type: object
+      required:
+      - type
+      - description
+      properties:
+        type:
+          type: string
+          enum:
+          - string
+          - integer
+          - number
+          - boolean
+          description: Tipo JSON del campo extraído.
+        description:
+          type: string
+          description: Descripción semántica que ayuda a localizar el valor en el documento.
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    AgentFieldDefinition:
+      type: object
+      required:
+      - type
+      - description
+      properties:
+        type:
+          type: string
+          enum:
+          - boolean
+          - string
+          - closed
+          - integer
+          description: Tipo de respuesta esperada para este campo agente.
+        description:
+          type: string
+          description: Instrucción semántica para el modelo en la fase agente.
+        options:
+          type: array
+          items:
+            type: string
+          description: 'Valores permitidos cuando type es "closed"; el modelo debe devolver exactamente una de estas opciones.
+
+            '
     CreateSchemaRequest:
       type: object
       required:
@@ -462,14 +451,16 @@ components:
 
             '
           example: null
-    CreateSchemaResponse:
+    DeleteSchemaRequest:
       type: object
+      required:
+      - schema_id
       properties:
-        success:
-          type: boolean
-          example: true
-        schema:
-          $ref: '#/components/schemas/SchemaItem'
+        schema_id:
+          type: string
+          format: uuid
+          description: UUID del schema a eliminar.
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
@@ -482,6 +473,3 @@ components:
       type: http
       scheme: bearer
       description: Forma alternativa de enviar la API key como Bearer token.
-x-refined-from:
-- claix-dev-openapi.yaml
-- claix-dev-openapi.yml

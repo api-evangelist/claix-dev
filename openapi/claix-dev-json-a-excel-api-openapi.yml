@@ -1,8 +1,8 @@
 openapi: 3.2.0
 info:
-  title: Claix Dev JSON a Excel API
+  title: Claix JSON a Excel API
+  description: Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make).
   version: 1.8.2
-  description: 'Operations tagged JSON a Excel across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://claix.dev/api
   description: Producción (dominio público Claix)
@@ -99,29 +99,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://claix.dev/api
-      description: Producción (dominio público Claix)
 components:
   schemas:
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
-          type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
-    JsonExcelSingleObjectRequest:
-      type: object
-      description: Forma B.2 -- un único objeto de registro.
-      additionalProperties: true
-      example:
-        nombre: Laura Fernández
-        email: laura@nebulatech.com
     JsonExcelArrayRequest:
       type: array
       description: Forma B.1 -- array directo de registros.
@@ -153,6 +132,17 @@ components:
           items:
             type: string
             format: binary
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
     JsonExcelEnvelopeRequest:
       type: object
       description: 'Forma B.3 -- "sobre" con el schema_id incluido y los datos dentro de "data" (o, de forma equivalente, "records").
@@ -182,6 +172,13 @@ components:
           items:
             type: object
             additionalProperties: true
+    JsonExcelSingleObjectRequest:
+      type: object
+      description: Forma B.2 -- un único objeto de registro.
+      additionalProperties: true
+      example:
+        nombre: Laura Fernández
+        email: laura@nebulatech.com
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
@@ -194,6 +191,3 @@ components:
       type: http
       scheme: bearer
       description: Forma alternativa de enviar la API key como Bearer token.
-x-refined-from:
-- claix-dev-openapi.yaml
-- claix-dev-openapi.yml

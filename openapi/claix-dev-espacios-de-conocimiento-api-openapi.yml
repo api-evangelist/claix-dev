@@ -1,8 +1,8 @@
 openapi: 3.2.0
 info:
-  title: Claix Dev Espacios de Conocimiento API
+  title: Claix Espacios de Conocimiento API
+  description: Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make).
   version: 1.8.2
-  description: 'Operations tagged Espacios de Conocimiento across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://claix.dev/api
   description: Producción (dominio público Claix)
@@ -201,6 +201,57 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    CreateSpaceRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 'Nombre del espacio de conocimiento. Es el único campo de entrada. Máximo 200 caracteres.
+
+            '
+          example: Proveedores 2026
+    DeleteSpaceSuccessResponse:
+      type: object
+      required:
+      - space_id
+      properties:
+        space_id:
+          type: string
+          format: uuid
+          description: 'Identificador del espacio eliminado, igual al de la URL. No incluye campo success: si el borrado no fue posible, la petición termina en 404 antes de devolver 200.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    SpaceContextSuccessResponse:
+      type: object
+      required:
+      - user_ask
+      - ia_response
+      properties:
+        user_ask:
+          type: array
+          items:
+            type: string
+          description: Preguntas enviadas, en el mismo orden.
+          example:
+          - ¿Qué proveedor factura más en total sumando todas las facturas?
+          - ¿Hay algún contrato cuyo importe no coincida con su factura?
+        ia_response:
+          type: array
+          items:
+            type:
+            - string
+            - 'null'
+          description: 'Respuestas alineadas 1:1 con user_ask. null si el dato no está en ninguno de los documentos del espacio. Cuando la respuesta procede de cruzar varios documentos, incluye una referencia breve a los archivos de origen.
+
+            '
+          example:
+          - Suministros Omega S.A., 48.320 € entre tres facturas (feb, mar, abr).
+          - Sí, contrato-omega.pdf indica 12.000 € y factura-omega-03.pdf cobra 13.450 €.
     SpaceContextRequest:
       type: object
       required:
@@ -231,18 +282,6 @@ components:
           type: string
           description: Información técnica adicional (solo presente en algunos casos).
           example: Missing required field 'schema_id' in multipart/form-data body.
-    DeleteSpaceSuccessResponse:
-      type: object
-      required:
-      - space_id
-      properties:
-        space_id:
-          type: string
-          format: uuid
-          description: 'Identificador del espacio eliminado, igual al de la URL. No incluye campo success: si el borrado no fue posible, la petición termina en 404 antes de devolver 200.
-
-            '
-          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
     CreateSpaceSuccessResponse:
       type: object
       required:
@@ -275,45 +314,6 @@ components:
               format: date-time
               description: Fecha y hora de creación del espacio.
               example: '2026-09-05T14:32:11.482Z'
-    CreateSpaceRequest:
-      type: object
-      required:
-      - name
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 200
-          description: 'Nombre del espacio de conocimiento. Es el único campo de entrada. Máximo 200 caracteres.
-
-            '
-          example: Proveedores 2026
-    SpaceContextSuccessResponse:
-      type: object
-      required:
-      - user_ask
-      - ia_response
-      properties:
-        user_ask:
-          type: array
-          items:
-            type: string
-          description: Preguntas enviadas, en el mismo orden.
-          example:
-          - ¿Qué proveedor factura más en total sumando todas las facturas?
-          - ¿Hay algún contrato cuyo importe no coincida con su factura?
-        ia_response:
-          type: array
-          items:
-            type:
-            - string
-            - 'null'
-          description: 'Respuestas alineadas 1:1 con user_ask. null si el dato no está en ninguno de los documentos del espacio. Cuando la respuesta procede de cruzar varios documentos, incluye una referencia breve a los archivos de origen.
-
-            '
-          example:
-          - Suministros Omega S.A., 48.320 € entre tres facturas (feb, mar, abr).
-          - Sí, contrato-omega.pdf indica 12.000 € y factura-omega-03.pdf cobra 13.450 €.
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
@@ -326,6 +326,3 @@ components:
       type: http
       scheme: bearer
       description: Forma alternativa de enviar la API key como Bearer token.
-x-refined-from:
-- claix-dev-openapi.yaml
-- claix-dev-openapi.yml

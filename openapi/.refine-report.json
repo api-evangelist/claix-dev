@@ -1,8 +1,7 @@
 {
   "provider": "claix-dev",
   "sources": [
-    "_original/claix-dev-openapi.yaml",
-    "claix-dev-openapi.yml"
+    "_original/claix-dev-openapi.yaml"
   ],
   "outputs": [
     "claix-dev-documento-a-json-api-openapi.yml",
@@ -16,26 +15,26 @@
     "claix-dev-texto-a-json-api-openapi.yml",
     "claix-dev-ventana-de-contexto-api-openapi.yml"
   ],
-  "archived": [
-    "archived openapi/claix-dev-openapi.yml"
-  ],
+  "archived": [],
   "errors": [],
   "warnings": [],
   "notes": [
+    "1 archived document(s) dropped as subsets of other archived documents",
     "sourced from openapi/_original/ (1 archived document(s)); previously refined output at the top level was skipped rather than re-split",
     "claix-dev-openapi.yaml: upgraded openapi 3.0.3 -> OpenAPI 3.2.0",
-    "claix-dev-openapi.yml: upgraded openapi 3.0.3 -> OpenAPI 3.2.0",
-    "tag 'Documento a JSON' spans 2 source specs (claix-dev-openapi.yaml, claix-dev-openapi.yml): per-path servers applied",
-    "tag 'Espacios de Conocimiento' spans 2 source specs (claix-dev-openapi.yaml, claix-dev-openapi.yml): per-path servers applied",
-    "tag 'Excel a JSON' spans 2 source specs (claix-dev-openapi.yaml, claix-dev-openapi.yml): per-path servers applied",
-    "tag 'Imagen a JSON' spans 2 source specs (claix-dev-openapi.yaml, claix-dev-openapi.yml): per-path servers applied",
-    "tag 'JSON a Excel' spans 2 source specs (claix-dev-openapi.yaml, claix-dev-openapi.yml): per-path servers applied",
-    "tag 'Modo Agente' spans 2 source specs (claix-dev-openapi.yaml, claix-dev-openapi.yml): per-path servers applied",
-    "tag 'PDF a JSON' spans 2 source specs (claix-dev-openapi.yaml, claix-dev-openapi.yml): per-path servers applied",
-    "tag 'Schemas' spans 2 source specs (claix-dev-openapi.yaml, claix-dev-openapi.yml): per-path servers applied",
-    "tag 'Texto a JSON' spans 2 source specs (claix-dev-openapi.yaml, claix-dev-openapi.yml): per-path servers applied",
-    "tag 'Ventana de Contexto' spans 2 source specs (claix-dev-openapi.yaml, claix-dev-openapi.yml): per-path servers applied",
-    "apis.yml register: written (+10 apis, 12 total)"
+    "apis.yml register: already-registered"
   ],
-  "skipped": []
+  "skipped": [
+    "_original/claix-dev-openapi.yml: archived document superseded by a larger archived document",
+    "claix-dev-documento-a-json-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "claix-dev-espacios-de-conocimiento-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "claix-dev-excel-a-json-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "claix-dev-imagen-a-json-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "claix-dev-json-a-excel-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "claix-dev-modo-agente-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "claix-dev-pdf-a-json-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "claix-dev-schemas-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "claix-dev-texto-a-json-api-openapi.yml: previously refined output, superseded by openapi/_original/",
+    "claix-dev-ventana-de-contexto-api-openapi.yml: previously refined output, superseded by openapi/_original/"
+  ]
 }

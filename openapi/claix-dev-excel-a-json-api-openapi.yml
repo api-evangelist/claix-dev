@@ -1,8 +1,8 @@
 openapi: 3.2.0
 info:
-  title: Claix Dev Excel a JSON API
+  title: Claix Excel a JSON API
+  description: Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make).
   version: 1.8.2
-  description: 'Operations tagged Excel a JSON across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://claix.dev/api
   description: Producción (dominio público Claix)
@@ -75,11 +75,19 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://claix.dev/api
-      description: Producción (dominio público Claix)
 components:
   schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
     ExcelJsonSuccessResponse:
       type: object
       properties:
@@ -117,17 +125,6 @@ components:
             empresa: TechSolutions
             email_contacto: ana.gomez@techsolutions.com
             telefono_movil: +1 (555) 019-2231
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
-          type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
     ExcelJsonRequest:
       type: object
       required:
@@ -164,6 +161,3 @@ components:
       type: http
       scheme: bearer
       description: Forma alternativa de enviar la API key como Bearer token.
-x-refined-from:
-- claix-dev-openapi.yaml
-- claix-dev-openapi.yml

@@ -1,8 +1,8 @@
 openapi: 3.2.0
 info:
-  title: Claix Dev Texto a JSON API
+  title: Claix Texto a JSON API
+  description: Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make).
   version: 1.8.2
-  description: 'Operations tagged Texto a JSON across 2 of this provider''s published API definitions: claix-dev-openapi.yaml, claix-dev-openapi.yml. Each path carries the servers of the definition it was published in.'
 servers:
 - url: https://claix.dev/api
   description: Producción (dominio público Claix)
@@ -81,11 +81,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-    servers:
-    - url: https://claix.dev/api
-      description: Producción (dominio público Claix)
 components:
   schemas:
+    TxtJsonRequest:
+      type: object
+      required:
+      - content
+      - schema_id
+      properties:
+        content:
+          type: string
+          description: 'Texto plano, HTML o XML ya procesado. No es un archivo. Máximo 300.000 caracteres.
+
+            '
+          example: <html><body><h1>Factura F-2026-00456</h1></body></html>
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo txt-json.
+
+            '
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
     DocJsonSuccessResponse:
       type: object
       properties:
@@ -127,32 +150,6 @@ components:
           type: string
           description: Información técnica adicional (solo presente en algunos casos).
           example: Missing required field 'schema_id' in multipart/form-data body.
-    TxtJsonRequest:
-      type: object
-      required:
-      - content
-      - schema_id
-      properties:
-        content:
-          type: string
-          description: 'Texto plano, HTML o XML ya procesado. No es un archivo. Máximo 300.000 caracteres.
-
-            '
-          example: <html><body><h1>Factura F-2026-00456</h1></body></html>
-        schema_id:
-          type: string
-          format: uuid
-          description: 'Identificador del schema (previamente creado) de tipo txt-json.
-
-            '
-          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
-        space_id:
-          type: string
-          format: uuid
-          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
-
-            '
-          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
@@ -165,6 +162,3 @@ components:
       type: http
       scheme: bearer
       description: Forma alternativa de enviar la API key como Bearer token.
-x-refined-from:
-- claix-dev-openapi.yaml
-- claix-dev-openapi.yml
