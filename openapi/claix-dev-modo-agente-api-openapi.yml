@@ -406,37 +406,7 @@ components:
             proveedor: Suministros Industriales del Ebro S.L.
             importe_total: 1284.5
             moneda: EUR
-    ImgJsonSuccessResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        schema_utilizado:
-          type: string
-          description: Nombre del schema aplicado.
-          example: Facturas de Proveedores
-        total_registros:
-          type: integer
-          description: 'Siempre 1 en este endpoint: la imagen completa se trata como una única fuente de datos, no como una tabla de múltiples filas.
-
-            '
-          example: 1
-        data:
-          type: array
-          description: 'Contiene exactamente un objeto con los datos extraídos de la imagen, según las propiedades definidas en el schema. Los datos no encontrados se devuelven como null.
-
-            '
-          items:
-            type: object
-            additionalProperties: true
-          example:
-          - numero_factura: F-2026-00456
-            fecha_emision: '2026-03-14'
-            proveedor: Suministros Industriales del Ebro S.L.
-            importe_total: 1284.5
-            moneda: EUR
-    DocJsonRequest:
+    PdfJsonRequest:
       type: object
       required:
       - file
@@ -445,39 +415,13 @@ components:
         file:
           type: string
           format: binary
-          description: 'Archivo de documento a analizar. Formatos admitidos: .docx (application/vnd.openxmlformats-officedocument.wordprocessingml.document), .txt (text/plain), .md (text/markdown) y .rtf (application/rtf). El formato legacy .doc (application/msword) NO está soportado. Tamaño máximo admitido: 10 MB.
+          description: 'Archivo PDF a analizar (texto seleccionable o escaneado). Tamaño máximo admitido: 15 MB.
 
             '
         schema_id:
           type: string
           format: uuid
-          description: 'Identificador del schema (previamente creado) de tipo "Documento a JSON".
-
-            '
-          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
-        space_id:
-          type: string
-          format: uuid
-          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
-
-            '
-          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
-    ImgJsonRequest:
-      type: object
-      required:
-      - file
-      - schema_id
-      properties:
-        file:
-          type: string
-          format: binary
-          description: 'Imagen a analizar. Formatos admitidos: .jpeg, .jpg, .png, .webp, .heic y .heif. Tamaño máximo admitido: 15 MB.
-
-            '
-        schema_id:
-          type: string
-          format: uuid
-          description: 'Identificador del schema (previamente creado) de tipo "Imagen a JSON".
+          description: 'Identificador del schema (previamente creado) de tipo "PDF a JSON".
 
             '
           example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
@@ -488,17 +432,6 @@ components:
 
             '
           example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
-    AgentData:
-      type: object
-      description: 'Respuestas tipadas de la fase Modo Agente según agent_definition del schema. Las claves coinciden con los nombres definidos en el dashboard; los tipos dependen de cada campo (boolean, integer, string u opción cerrada). Opcionalmente puede incluir resumen_agent como string si está configurado en el schema.
-
-        '
-      additionalProperties: true
-      example:
-        clausula_penalizacion: true
-        salario: 55000
-        es_parcial: false
-        resumen_contrato: Contrato indefinido con jornada completa.
     DocJsonSuccessResponse:
       type: object
       properties:
@@ -529,25 +462,7 @@ components:
             direccion_inmueble: Calle Mayor 14, 3ºB, Madrid
             renta_mensual: 950.0
             fecha_inicio: '2026-04-01'
-    AgentImgJsonSuccessResponse:
-      allOf:
-      - $ref: '#/components/schemas/ImgJsonSuccessResponse'
-      - type: object
-        required:
-        - agent_data
-        properties:
-          agent_data:
-            $ref: '#/components/schemas/AgentData'
-    AgentPdfJsonSuccessResponse:
-      allOf:
-      - $ref: '#/components/schemas/PdfJsonSuccessResponse'
-      - type: object
-        required:
-        - agent_data
-        properties:
-          agent_data:
-            $ref: '#/components/schemas/AgentData'
-    PdfJsonRequest:
+    ImgJsonRequest:
       type: object
       required:
       - file
@@ -556,13 +471,13 @@ components:
         file:
           type: string
           format: binary
-          description: 'Archivo PDF a analizar (texto seleccionable o escaneado). Tamaño máximo admitido: 15 MB.
+          description: 'Imagen a analizar. Formatos admitidos: .jpeg, .jpg, .png, .webp, .heic y .heif. Tamaño máximo admitido: 15 MB.
 
             '
         schema_id:
           type: string
           format: uuid
-          description: 'Identificador del schema (previamente creado) de tipo "PDF a JSON".
+          description: 'Identificador del schema (previamente creado) de tipo "Imagen a JSON".
 
             '
           example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
@@ -573,35 +488,6 @@ components:
 
             '
           example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
-    AgentExcelJsonSuccessResponse:
-      allOf:
-      - $ref: '#/components/schemas/ExcelJsonSuccessResponse'
-      - type: object
-        required:
-        - agent_data
-        properties:
-          agent_data:
-            $ref: '#/components/schemas/AgentData'
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
-          type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
-    AgentDocJsonSuccessResponse:
-      allOf:
-      - $ref: '#/components/schemas/DocJsonSuccessResponse'
-      - type: object
-        required:
-        - agent_data
-        properties:
-          agent_data:
-            $ref: '#/components/schemas/AgentData'
     TxtJsonRequest:
       type: object
       required:
@@ -628,6 +514,56 @@ components:
 
             '
           example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    AgentData:
+      type: object
+      description: 'Respuestas tipadas de la fase Modo Agente según agent_definition del schema. Las claves coinciden con los nombres definidos en el dashboard; los tipos dependen de cada campo (boolean, integer, string u opción cerrada). Opcionalmente puede incluir resumen_agent como string si está configurado en el schema.
+
+        '
+      additionalProperties: true
+      example:
+        clausula_penalizacion: true
+        salario: 55000
+        es_parcial: false
+        resumen_contrato: Contrato indefinido con jornada completa.
+    AgentPdfJsonSuccessResponse:
+      allOf:
+      - $ref: '#/components/schemas/PdfJsonSuccessResponse'
+      - type: object
+        required:
+        - agent_data
+        properties:
+          agent_data:
+            $ref: '#/components/schemas/AgentData'
+    ImgJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Facturas de Proveedores
+        total_registros:
+          type: integer
+          description: 'Siempre 1 en este endpoint: la imagen completa se trata como una única fuente de datos, no como una tabla de múltiples filas.
+
+            '
+          example: 1
+        data:
+          type: array
+          description: 'Contiene exactamente un objeto con los datos extraídos de la imagen, según las propiedades definidas en el schema. Los datos no encontrados se devuelven como null.
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - numero_factura: F-2026-00456
+            fecha_emision: '2026-03-14'
+            proveedor: Suministros Industriales del Ebro S.L.
+            importe_total: 1284.5
+            moneda: EUR
     ExcelJsonSuccessResponse:
       type: object
       properties:
@@ -665,6 +601,70 @@ components:
             empresa: TechSolutions
             email_contacto: ana.gomez@techsolutions.com
             telefono_movil: +1 (555) 019-2231
+    AgentImgJsonSuccessResponse:
+      allOf:
+      - $ref: '#/components/schemas/ImgJsonSuccessResponse'
+      - type: object
+        required:
+        - agent_data
+        properties:
+          agent_data:
+            $ref: '#/components/schemas/AgentData'
+    DocJsonRequest:
+      type: object
+      required:
+      - file
+      - schema_id
+      properties:
+        file:
+          type: string
+          format: binary
+          description: 'Archivo de documento a analizar. Formatos admitidos: .docx (application/vnd.openxmlformats-officedocument.wordprocessingml.document), .txt (text/plain), .md (text/markdown) y .rtf (application/rtf). El formato legacy .doc (application/msword) NO está soportado. Tamaño máximo admitido: 10 MB.
+
+            '
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "Documento a JSON".
+
+            '
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    AgentDocJsonSuccessResponse:
+      allOf:
+      - $ref: '#/components/schemas/DocJsonSuccessResponse'
+      - type: object
+        required:
+        - agent_data
+        properties:
+          agent_data:
+            $ref: '#/components/schemas/AgentData'
+    AgentExcelJsonSuccessResponse:
+      allOf:
+      - $ref: '#/components/schemas/ExcelJsonSuccessResponse'
+      - type: object
+        required:
+        - agent_data
+        properties:
+          agent_data:
+            $ref: '#/components/schemas/AgentData'
     ExcelJsonRequest:
       type: object
       required:

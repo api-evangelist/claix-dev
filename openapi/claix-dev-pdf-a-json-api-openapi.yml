@@ -117,17 +117,6 @@ components:
             proveedor: Suministros Industriales del Ebro S.L.
             importe_total: 1284.5
             moneda: EUR
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
-          type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
     PdfJsonRequest:
       type: object
       required:
@@ -154,6 +143,17 @@ components:
 
             '
           example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
   securitySchemes:
     ApiKeyAuth:
       type: apiKey

@@ -101,6 +101,42 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    JsonExcelEnvelopeRequest:
+      type: object
+      description: 'Forma B.3 -- "sobre" con el schema_id incluido y los datos dentro de "data" (o, de forma equivalente, "records").
+
+        '
+      required:
+      - schema_id
+      - data
+      properties:
+        schema_id:
+          type: string
+          format: uuid
+          example: 1f9e6103-9221-4c22-8a3a-8592d8b0eb38
+        data:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - nombre: Laura Fernández
+            email: laura@nebulatech.com
+          - nombre: Miguel Gómez
+            email: m.gomez@construred.es
+        records:
+          type: array
+          description: Alternativa equivalente a "data".
+          items:
+            type: object
+            additionalProperties: true
+    JsonExcelSingleObjectRequest:
+      type: object
+      description: Forma B.2 -- un único objeto de registro.
+      additionalProperties: true
+      example:
+        nombre: Laura Fernández
+        email: laura@nebulatech.com
     JsonExcelArrayRequest:
       type: array
       description: Forma B.1 -- array directo de registros.
@@ -143,42 +179,6 @@ components:
           type: string
           description: Información técnica adicional (solo presente en algunos casos).
           example: Missing required field 'schema_id' in multipart/form-data body.
-    JsonExcelEnvelopeRequest:
-      type: object
-      description: 'Forma B.3 -- "sobre" con el schema_id incluido y los datos dentro de "data" (o, de forma equivalente, "records").
-
-        '
-      required:
-      - schema_id
-      - data
-      properties:
-        schema_id:
-          type: string
-          format: uuid
-          example: 1f9e6103-9221-4c22-8a3a-8592d8b0eb38
-        data:
-          type: array
-          items:
-            type: object
-            additionalProperties: true
-          example:
-          - nombre: Laura Fernández
-            email: laura@nebulatech.com
-          - nombre: Miguel Gómez
-            email: m.gomez@construred.es
-        records:
-          type: array
-          description: Alternativa equivalente a "data".
-          items:
-            type: object
-            additionalProperties: true
-    JsonExcelSingleObjectRequest:
-      type: object
-      description: Forma B.2 -- un único objeto de registro.
-      additionalProperties: true
-      example:
-        nombre: Laura Fernández
-        email: laura@nebulatech.com
   securitySchemes:
     ApiKeyAuth:
       type: apiKey

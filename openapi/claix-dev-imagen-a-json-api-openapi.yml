@@ -87,32 +87,17 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
-    ImgJsonRequest:
+    ErrorResponse:
       type: object
-      required:
-      - file
-      - schema_id
       properties:
-        file:
+        error:
           type: string
-          format: binary
-          description: 'Imagen a analizar. Formatos admitidos: .jpeg, .jpg, .png, .webp, .heic y .heif. Tamaño máximo admitido: 15 MB.
-
-            '
-        schema_id:
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
           type: string
-          format: uuid
-          description: 'Identificador del schema (previamente creado) de tipo "Imagen a JSON".
-
-            '
-          example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
-        space_id:
-          type: string
-          format: uuid
-          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
-
-            '
-          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
     ImgJsonSuccessResponse:
       type: object
       properties:
@@ -143,17 +128,32 @@ components:
             proveedor: Suministros Industriales del Ebro S.L.
             importe_total: 1284.5
             moneda: EUR
-    ErrorResponse:
+    ImgJsonRequest:
       type: object
+      required:
+      - file
+      - schema_id
       properties:
-        error:
+        file:
           type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
+          format: binary
+          description: 'Imagen a analizar. Formatos admitidos: .jpeg, .jpg, .png, .webp, .heic y .heif. Tamaño máximo admitido: 15 MB.
+
+            '
+        schema_id:
           type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "Imagen a JSON".
+
+            '
+          example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
   securitySchemes:
     ApiKeyAuth:
       type: apiKey

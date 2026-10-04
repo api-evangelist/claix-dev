@@ -83,32 +83,17 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
-    TxtJsonRequest:
+    ErrorResponse:
       type: object
-      required:
-      - content
-      - schema_id
       properties:
-        content:
+        error:
           type: string
-          description: 'Texto plano, HTML o XML ya procesado. No es un archivo. Máximo 300.000 caracteres.
-
-            '
-          example: <html><body><h1>Factura F-2026-00456</h1></body></html>
-        schema_id:
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
           type: string
-          format: uuid
-          description: 'Identificador del schema (previamente creado) de tipo txt-json.
-
-            '
-          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
-        space_id:
-          type: string
-          format: uuid
-          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
-
-            '
-          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
     DocJsonSuccessResponse:
       type: object
       properties:
@@ -139,17 +124,32 @@ components:
             direccion_inmueble: Calle Mayor 14, 3ºB, Madrid
             renta_mensual: 950.0
             fecha_inicio: '2026-04-01'
-    ErrorResponse:
+    TxtJsonRequest:
       type: object
+      required:
+      - content
+      - schema_id
       properties:
-        error:
+        content:
           type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
+          description: 'Texto plano, HTML o XML ya procesado. No es un archivo. Máximo 300.000 caracteres.
+
+            '
+          example: <html><body><h1>Factura F-2026-00456</h1></body></html>
+        schema_id:
           type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo txt-json.
+
+            '
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
