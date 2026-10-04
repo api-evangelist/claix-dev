@@ -284,6 +284,8 @@ apis:
   humanURL: https://www.claix.dev/documentation/excel-to-json
   baseURL: https://claix.dev/api
   tags:
+  - Schema
+  tags_raw:
   - Schemas
   properties:
   - type: OpenAPI
