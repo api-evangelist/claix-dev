@@ -1,0 +1,39 @@
+# Front Door AI Index — claix-dev — 2026-09-17
+# AI vocabulary counted on the provider's root page. Generated; do not edit.
+# `score` is null unless ownership is `own` — see front_door_ai.py.
+front_door_ai:
+  slug: claix-dev
+  lexicon_version: '1.0'
+  probed_at: '2026-09-25'
+  host: www.claix.dev
+  final_host: www.claix.dev
+  ownership: own
+  owner: claix-dev
+  shares_host_with: null
+  inherited_from: null
+  alias_of: null
+  verdict: scored
+  score: 62
+  band: 6
+  band_label: dominant
+  host_score: 62
+  density: 32.65
+  words: 1899
+  tiers:
+    agentic: 32
+    core: 25
+    model: 5
+  ambiguous: 60
+  top_terms:
+    agent: 52
+    AI: 25
+    MCP: 16
+    AI agent: 7
+    automation: 6
+    Claude: 3
+    autonomous agent: 3
+    intelligence: 2
+    prompts: 2
+    Gemini: 1
+    OpenAI: 1
+    RAG: 1

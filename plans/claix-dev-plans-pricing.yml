@@ -60,3 +60,26 @@ plans:
 elements:
   - name: Embeddable widget - free, unlimited embed use
   - name: MCP server, A2A agent and Python SDK included at no extra charge (same key)
+x-canonical:
+  generated: '2026-10-08'
+  vocabulary: all/0-working/economics/plans-canonical.yml
+  models:
+  - free
+  - metered
+  units:
+  - request
+  plans:
+  - name: Claix Managed AI (pay-as-you-go)
+    access: other
+    model: metered
+    model_how: stated
+    units:
+    - other
+    - request
+    periods: []
+  - name: Native BYOK (Bring Your Own Key)
+    access: free
+    model: free
+    model_how: derived
+    units: []
+    periods: []
