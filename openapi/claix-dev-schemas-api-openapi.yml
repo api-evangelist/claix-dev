@@ -185,37 +185,6 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
-    SchemasListResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        total_schemas:
-          type: integer
-          description: Número total de schemas devueltos.
-          example: 5
-        schemas:
-          type: array
-          items:
-            $ref: '#/components/schemas/SchemaItem'
-    SchemaFieldDefinition:
-      type: object
-      required:
-      - type
-      - description
-      properties:
-        type:
-          type: string
-          enum:
-          - string
-          - integer
-          - number
-          - boolean
-          description: Tipo JSON del campo extraído.
-        description:
-          type: string
-          description: Descripción semántica que ayuda a localizar el valor en el documento.
     DeleteSchemaResponse:
       type: object
       properties:
@@ -237,17 +206,40 @@ components:
           example: true
         schema:
           $ref: '#/components/schemas/SchemaItem'
-    ErrorResponse:
+    DeleteSchemaRequest:
       type: object
+      required:
+      - schema_id
       properties:
-        error:
+        schema_id:
           type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
+          format: uuid
+          description: UUID del schema a eliminar.
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+    AgentFieldDefinition:
+      type: object
+      required:
+      - type
+      - description
+      properties:
+        type:
           type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
+          enum:
+          - boolean
+          - string
+          - closed
+          - integer
+          description: Tipo de respuesta esperada para este campo agente.
+        description:
+          type: string
+          description: Instrucción semántica para el modelo en la fase agente.
+        options:
+          type: array
+          items:
+            type: string
+          description: 'Valores permitidos cuando type es "closed"; el modelo debe devolver exactamente una de estas opciones.
+
+            '
     SchemaItem:
       type: object
       description: Un schema tal como está almacenado en la cuenta.
@@ -346,7 +338,7 @@ components:
           type: string
           format: date-time
           example: '2026-08-06T09:51:41.372964+00:00'
-    AgentFieldDefinition:
+    SchemaFieldDefinition:
       type: object
       required:
       - type
@@ -355,31 +347,39 @@ components:
         type:
           type: string
           enum:
-          - boolean
           - string
-          - closed
           - integer
-          description: Tipo de respuesta esperada para este campo agente.
+          - number
+          - boolean
+          description: Tipo JSON del campo extraído.
         description:
           type: string
-          description: Instrucción semántica para el modelo en la fase agente.
-        options:
+          description: Descripción semántica que ayuda a localizar el valor en el documento.
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    SchemasListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        total_schemas:
+          type: integer
+          description: Número total de schemas devueltos.
+          example: 5
+        schemas:
           type: array
           items:
-            type: string
-          description: 'Valores permitidos cuando type es "closed"; el modelo debe devolver exactamente una de estas opciones.
-
-            '
-    DeleteSchemaRequest:
-      type: object
-      required:
-      - schema_id
-      properties:
-        schema_id:
-          type: string
-          format: uuid
-          description: UUID del schema a eliminar.
-          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+            $ref: '#/components/schemas/SchemaItem'
     CreateSchemaRequest:
       type: object
       required:

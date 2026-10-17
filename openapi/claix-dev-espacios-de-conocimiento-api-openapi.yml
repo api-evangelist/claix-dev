@@ -201,6 +201,61 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    CreateSpaceRequest:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: 'Nombre del espacio de conocimiento. Es el único campo de entrada. Máximo 200 caracteres.
+
+            '
+          example: Proveedores 2026
+    SpaceContextRequest:
+      type: object
+      required:
+      - questions
+      properties:
+        questions:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 400
+          description: 'Preguntas a responder usando solo el markdown persistido de los documentos del espacio. Mismo formato y mismos límites que document-context: máximo 5 por turno, 400 caracteres cada una.
+
+            '
+          example:
+          - ¿Qué proveedor factura más en total sumando todas las facturas?
+          - ¿Hay algún contrato cuyo importe no coincida con su factura?
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    DeleteSpaceSuccessResponse:
+      type: object
+      required:
+      - space_id
+      properties:
+        space_id:
+          type: string
+          format: uuid
+          description: 'Identificador del espacio eliminado, igual al de la URL. No incluye campo success: si el borrado no fue posible, la petición termina en 404 antes de devolver 200.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
     SpaceContextSuccessResponse:
       type: object
       required:
@@ -227,37 +282,6 @@ components:
           example:
           - Suministros Omega S.A., 48.320 € entre tres facturas (feb, mar, abr).
           - Sí, contrato-omega.pdf indica 12.000 € y factura-omega-03.pdf cobra 13.450 €.
-    DeleteSpaceSuccessResponse:
-      type: object
-      required:
-      - space_id
-      properties:
-        space_id:
-          type: string
-          format: uuid
-          description: 'Identificador del espacio eliminado, igual al de la URL. No incluye campo success: si el borrado no fue posible, la petición termina en 404 antes de devolver 200.
-
-            '
-          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
-    SpaceContextRequest:
-      type: object
-      required:
-      - questions
-      properties:
-        questions:
-          type: array
-          minItems: 1
-          maxItems: 5
-          items:
-            type: string
-            minLength: 1
-            maxLength: 400
-          description: 'Preguntas a responder usando solo el markdown persistido de los documentos del espacio. Mismo formato y mismos límites que document-context: máximo 5 por turno, 400 caracteres cada una.
-
-            '
-          example:
-          - ¿Qué proveedor factura más en total sumando todas las facturas?
-          - ¿Hay algún contrato cuyo importe no coincida con su factura?
     CreateSpaceSuccessResponse:
       type: object
       required:
@@ -290,30 +314,6 @@ components:
               format: date-time
               description: Fecha y hora de creación del espacio.
               example: '2026-09-05T14:32:11.482Z'
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
-          type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
-    CreateSpaceRequest:
-      type: object
-      required:
-      - name
-      properties:
-        name:
-          type: string
-          minLength: 1
-          maxLength: 200
-          description: 'Nombre del espacio de conocimiento. Es el único campo de entrada. Máximo 200 caracteres.
-
-            '
-          example: Proveedores 2026
   securitySchemes:
     ApiKeyAuth:
       type: apiKey

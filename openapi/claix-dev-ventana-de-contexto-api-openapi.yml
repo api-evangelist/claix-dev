@@ -201,6 +201,32 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    WindowContextSuccessResponse:
+      type: object
+      required:
+      - user_ask
+      - ia_response
+      properties:
+        user_ask:
+          type: array
+          items:
+            type: string
+          description: Preguntas enviadas, en el mismo orden.
+          example:
+          - ¿Cuál es la penalización exacta por cancelación anticipada?
+          - ¿Qué empresa figura como arrendataria y cuál es su CIF?
+        ia_response:
+          type: array
+          items:
+            type:
+            - string
+            - 'null'
+          description: 'Respuestas alineadas 1:1 con user_ask. null si el dato no está en el documento.
+
+            '
+          example:
+          - El 15 % del importe restante del contrato.
+          - Inversiones Delta S.L., CIF B12345678
     DeleteDocumentSuccessResponse:
       type: object
       required:
@@ -213,6 +239,17 @@ components:
 
             '
           example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
     GetDocumentSuccessResponse:
       type: object
       required:
@@ -251,43 +288,6 @@ components:
           description: 'Contenido bruto del documento (texto o markdown persistido tras la extracción).
 
             '
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
-          type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
-    WindowContextSuccessResponse:
-      type: object
-      required:
-      - user_ask
-      - ia_response
-      properties:
-        user_ask:
-          type: array
-          items:
-            type: string
-          description: Preguntas enviadas, en el mismo orden.
-          example:
-          - ¿Cuál es la penalización exacta por cancelación anticipada?
-          - ¿Qué empresa figura como arrendataria y cuál es su CIF?
-        ia_response:
-          type: array
-          items:
-            type:
-            - string
-            - 'null'
-          description: 'Respuestas alineadas 1:1 con user_ask. null si el dato no está en el documento.
-
-            '
-          example:
-          - El 15 % del importe restante del contrato.
-          - Inversiones Delta S.L., CIF B12345678
     WindowContextRequest:
       type: object
       required:

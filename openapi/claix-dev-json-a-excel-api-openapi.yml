@@ -101,6 +101,55 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    JsonExcelArrayRequest:
+      type: array
+      description: Forma B.1 -- array directo de registros.
+      items:
+        type: object
+        additionalProperties: true
+      example:
+      - nombre: Laura Fernández
+        email: laura@nebulatech.com
+      - nombre: Miguel Gómez
+        email: m.gomez@construred.es
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+    JsonExcelSingleObjectRequest:
+      type: object
+      description: Forma B.2 -- un único objeto de registro.
+      additionalProperties: true
+      example:
+        nombre: Laura Fernández
+        email: laura@nebulatech.com
+    JsonExcelMultipartRequest:
+      type: object
+      required:
+      - schema_id
+      properties:
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "JSON a Excel".
+
+            '
+          example: 1f9e6103-9221-4c22-8a3a-8592d8b0eb38
+        files:
+          type: array
+          description: 'Uno o varios archivos o campos de texto con contenido JSON (objeto único o array de objetos). Se puede repetir este campo o usar nombres de campo distintos; todos los que contengan JSON válido son tenidos en cuenta.
+
+            '
+          items:
+            type: string
+            format: binary
     JsonExcelEnvelopeRequest:
       type: object
       description: 'Forma B.3 -- "sobre" con el schema_id incluido y los datos dentro de "data" (o, de forma equivalente, "records").
@@ -130,55 +179,6 @@ components:
           items:
             type: object
             additionalProperties: true
-    JsonExcelSingleObjectRequest:
-      type: object
-      description: Forma B.2 -- un único objeto de registro.
-      additionalProperties: true
-      example:
-        nombre: Laura Fernández
-        email: laura@nebulatech.com
-    JsonExcelArrayRequest:
-      type: array
-      description: Forma B.1 -- array directo de registros.
-      items:
-        type: object
-        additionalProperties: true
-      example:
-      - nombre: Laura Fernández
-        email: laura@nebulatech.com
-      - nombre: Miguel Gómez
-        email: m.gomez@construred.es
-    JsonExcelMultipartRequest:
-      type: object
-      required:
-      - schema_id
-      properties:
-        schema_id:
-          type: string
-          format: uuid
-          description: 'Identificador del schema (previamente creado) de tipo "JSON a Excel".
-
-            '
-          example: 1f9e6103-9221-4c22-8a3a-8592d8b0eb38
-        files:
-          type: array
-          description: 'Uno o varios archivos o campos de texto con contenido JSON (objeto único o array de objetos). Se puede repetir este campo o usar nombres de campo distintos; todos los que contengan JSON válido son tenidos en cuenta.
-
-            '
-          items:
-            type: string
-            format: binary
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
-          type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
