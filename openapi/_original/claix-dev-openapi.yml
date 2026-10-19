@@ -1,13 +1,13 @@
-# x-archived-from: claix-dev-openapi.yml
-# x-archived-on: 2026-09-26
 openapi: 3.0.3
 info:
   title: Claix API
   description: >
     Claix es una API de conversión de datos tabulares, JSON y documentos
-    (PDF, Word, texto plano, imágenes) pensada para integraciones server-to-server
+    (PDF, Word, texto plano, imágenes, audio) pensada para integraciones server-to-server
     (backends, scripts, herramientas de automatización como n8n, Zapier o
-    Make). Expone seis endpoints principales de conversión:
+    Make). Source Tracing opcional: citas por campo `{ value, source }` o
+    `requires_human_revision` si falta evidencia. Expone seis endpoints
+    principales de conversión:
 
     - **Excel/CSV → JSON**: recibe un archivo Excel o CSV y lo transforma en
       JSON según la estructura definida en un "schema" previamente creado.
@@ -28,15 +28,30 @@ info:
       HTML o XML ya procesado, sin archivo) y devuelve un objeto JSON con los
       datos extraídos, según un schema de tipo txt-json. Máximo 300.000
       caracteres. Tarifa fija €0,10 por llamada exitosa tras el free tier.
+    - **Excel/CSV → Markdown**, **PDF → Markdown**, **Documento → Markdown**,
+      **Imagen → Markdown**, **Txt/HTML/XML → Markdown** y **Audio → Markdown**:
+      misma autenticación, mismos formatos y mismos límites que el endpoint JSON
+      equivalente. No piden schema_id. save=true inserta el Markdown en la base
+      conectada y la respuesta incluye row_id. PDF con texto, Excel, documentos y
+      texto se convierten en local. PDF escaneado, imagen y audio llaman al
+      mismo modelo con BYOK.
+    - **Audio → JSON**: recibe un archivo de audio (.mp3, .wav, .m4a o .ogg)
+      y un schema_id, y devuelve un único objeto JSON con los datos extraídos
+      de lo hablado. Tamaño máximo 12 MB y duración máxima 10 minutos. Si el
+      audio no es inteligible, responde 422.
 
     Además, expone endpoints para consultar y gestionar los schemas
     de la cuenta:
 
     - **Listar schemas**: dado un API key, devuelve todos los schemas de esa
       cuenta con su información completa (id, nombre, tipo y definición).
+    - **Obtener schema**: dado un `schema_id` en la URL, devuelve ese schema
+      con su definición completa.
     - **Crear schema**: crea un schema con `name`, `type`, `schema_definition`
       y, opcionalmente, Modo Agente (`is_agent_mode`, `agent_definition`,
-      `resumen_agent`).
+      `resumen_agent`) y verificación de fuente.
+    - **Actualizar schema**: sustituye la configuración completa de un schema
+      existente (`schema_id` en la URL; mismo body que crear).
     - **Borrar schema**: elimina un schema de la cuenta por `schema_id`.
 
     **Ventana de Contexto** — Tras una extracción con `window_context`
@@ -47,11 +62,20 @@ info:
       contenido bruto y metadatos del documento (`content`, `file_name`,
       `schema_id`, `processed_at`). Llamada gratuita.
     - **POST https://claix.dev/document-context/{document_id}**: body
-      `{ "questions": ["..."] }` (máximo 5 preguntas, 400 caracteres cada una).
-      Respuesta `{ user_ask, ia_response }`.
+      `{ "questions": [{ "question": "...", "format": "string"|"int"|"boolean"|"timestamp"|"array" }] }`
+      (máximo 5 preguntas, 400 caracteres cada una). Respuesta
+      `{ user_ask, ia_response, log_id }`. Cada respuesta respeta el `format`
+      pedido (o `null`). Si la verificación de fuente está activada en consulta
+      a documentos, cada ítem de `ia_response` es `{ value, source }`.
     - **DELETE https://claix.dev/delete-document/{document_id}**: elimina el
       documento persistido por `document_id`. Sin body ni query params.
       Respuesta `{ document_id }`. Llamada gratuita.
+    - **POST https://claix.dev/replace-document**: body
+      `{ "document_id": "...", "new_content_document_id": "..." }`. Sustituye
+      el contenido del documento destino con el del documento fuente; el
+      fuente se elimina. Conserva el `document_id` estable (y su espacio).
+      Respuesta `{ success, swap_id, document_id, source_document_id,
+      file_name, version, swaps_count, message }`. Llamada gratuita.
 
     **Espacios de Conocimiento** — Los documentos persistidos se pueden agrupar
     en espacios (`space_id` opcional en los endpoints de extracción). Una vez
@@ -60,15 +84,36 @@ info:
 
     - **POST https://claix.dev/create-space**: body `{ "name": "..." }`.
       Crea un espacio y devuelve `{ success, space: { space_id, name,
-      created_at } }`. Llamada gratuita.
+      created_at } }`. Máximo 10 documentos por space_id. Llamada gratuita.
     - **DELETE https://claix.dev/delete-space/{space_id}**: elimina el espacio.
       Sin body ni query params. Respuesta `{ space_id }`. Llamada gratuita.
+    - **POST https://claix.dev/add-space**: body
+      `{ "document_id": "...", "space_id": "..." }`. Asigna un documento
+      que aún no tiene espacio a un espacio existente. Si ya pertenece a uno
+      o el espacio ya tiene 10 documentos, responde 400. Respuesta
+      `{ success, document_id, space_id, space_name, file_name, version,
+      message }`. Llamada gratuita.
+    - **DELETE https://claix.dev/remove-document-from-space/{document_id}**:
+      desacopla el documento de su espacio (`espacio_id` → null). Sin body.
+      También acepta POST. Respuesta `{ success, document_id,
+      previous_space_id, espacio_id, file_name, version, message }`.
+      Llamada gratuita.
     - **POST https://claix.dev/space-context/{space_id}**: body
-      `{ "questions": ["..."] }` (máximo 5 preguntas, 400 caracteres cada una),
-      exactamente igual que document-context. La diferencia es el alcance: la
-      respuesta se construye cruzando el `markdown_content` de todos los
-      documentos vigentes del espacio, no de uno solo.
-      Respuesta `{ user_ask, ia_response }`.
+      `{ "questions": [{ "question": "...", "format": "string"|"int"|"boolean"|"timestamp"|"array" }] }`
+      (máximo 5 preguntas, 400 caracteres cada una), exactamente igual que
+      document-context. La diferencia es el alcance: la respuesta se construye
+      cruzando el `markdown_content` de todos los documentos vigentes del
+      espacio, no de uno solo. Respuesta `{ user_ask, ia_response, log_id }`.
+      Si la verificación de fuente está activada en consulta a espacio de
+      conocimiento, cada ítem de `ia_response` es `{ value, source }` nombrando
+      `document_id` y `file_name`.
+    - **POST https://claix.dev/multi-document**: hasta 10 archivos de los
+      formatos de Extracción → Markdown, más `questions` con el mismo formato
+      que space-context. Cada archivo se convierte a Markdown y las preguntas
+      se responden cruzando esos textos. Respuesta `{ user_ask, ia_response,
+      documents_processed, log_id }`. `window_context`, `window_time` y
+      `space_id` siguen siendo opcionales en este endpoint. La conversión a
+      Markdown usa `save`, no esos campos.
 
     Los seis endpoints de conversión usan reconocimiento automático de sinónimos,
     abreviaturas, traducciones y variantes de nombre entre las
@@ -81,7 +126,20 @@ info:
     del schema. La respuesta HTTP 200 incluye los campos habituales de
     extracción más `agent_data` (objeto tipado con booleanos, enteros, strings
     u opciones cerradas). El schema debe tener `is_agent_mode` activado.
-  version: "1.8.2"
+
+    **log_id** — Las extracciones, el modo agente, document-context y
+    space-context incluyen `log_id` (UUID de `usage_logs`) en la respuesta de
+    éxito y en la mayoría de errores una vez autenticada la petición.
+
+    **Verificación de fuente** — Si está activada en el schema, cada
+    propiedad extraída (y cada campo de `agent_data`) es un objeto
+    `{ value, source }` en lugar de un valor plano. `source` cita la evidencia
+    (página, párrafo, celda, fragmento o zona de la imagen). Si no hay
+    evidencia, `source` es exactamente `requires_human_revision`. Si está
+    desactivada, el formato no cambia. En document-context y space-context
+    el interruptor es por cuenta (consulta a documentos / consulta a espacio
+    de conocimiento), no por schema.
+  version: "1.12.0"
 servers:
   - url: https://claix.dev/api
     description: Producción (dominio público Claix)
@@ -91,6 +149,12 @@ security:
   - BearerAuth: []
 
 tags:
+  - name: Markdown
+    description: >
+      Conversión de archivos a Markdown, sin schema. Mismos formatos que los
+      endpoints de extracción a JSON. space_id es opcional. PDF digital, Excel,
+      documentos de texto y txt/HTML/XML se convierten en local. PDF escaneado,
+      imagen y audio usan el mismo modelo y el mismo BYOK que su endpoint JSON.
   - name: Excel a JSON
     description: Conversión de archivos Excel/CSV a JSON estructurado
   - name: JSON a Excel
@@ -109,20 +173,27 @@ tags:
     description: >
       Extracción de datos estructurados a partir de texto plano, HTML o XML
       ya procesado (campo content, sin archivo)
+  - name: Audio a JSON
+    description: >
+      Extracción de datos estructurados a partir de audio hablado
+      (.mp3, .wav, .m4a, .ogg)
   - name: Ventana de Contexto
     description: >
-      Consulta de contenido bruto, preguntas o borrado de un documento persistido
-      (markdown_content) identificado por document_id. URLs públicas: GET
-      https://claix.dev/get-document/{document_id}; POST
+      Consulta de contenido bruto, preguntas, borrado o sustitución de contenido
+      de un documento persistido (markdown_content) identificado por document_id.
+      URLs públicas: GET https://claix.dev/get-document/{document_id}; POST
       https://claix.dev/document-context/{document_id}; DELETE
-      https://claix.dev/delete-document/{document_id}.
+      https://claix.dev/delete-document/{document_id}; POST
+      https://claix.dev/replace-document.
   - name: Espacios de Conocimiento
     description: >
-      Creación y borrado de espacios de conocimiento, y preguntas cruzadas
-      sobre todos los documentos vigentes agrupados en uno de ellos. El formato
-      de entrada y salida de las preguntas es el mismo que en la ventana de
-      contexto. URLs públicas: POST https://claix.dev/create-space; DELETE
-      https://claix.dev/delete-space/{space_id}; POST
+      Creación y borrado de espacios de conocimiento, asignación o desacoplado
+      de documentos a un espacio, y preguntas cruzadas sobre todos los documentos
+      vigentes agrupados en uno de ellos. El formato de entrada y salida de las
+      preguntas es el mismo que en la ventana de contexto. URLs públicas: POST
+      https://claix.dev/create-space; DELETE
+      https://claix.dev/delete-space/{space_id}; POST https://claix.dev/add-space;
+      DELETE https://claix.dev/remove-document-from-space/{document_id}; POST
       https://claix.dev/space-context/{space_id}.
   - name: Schemas
     description: Consulta de los schemas creados en la cuenta
@@ -131,9 +202,391 @@ tags:
       Extracción estructurada más razonamiento semántico en una sola llamada.
       Requiere schema con is_agent_mode activado y agent_definition configurada.
       URLs públicas: POST /agent/excel-json, /agent/pdf-json, /agent/doc-json,
-      /agent/img-json, /agent/txt-json (documentación humana en /documentation/agent/*).
+      /agent/img-json, /agent/txt-json, /agent/audio-json (documentación humana en /documentation/agent/*).
 
 paths:
+  /excel-markdown:
+    post:
+      operationId: excelToMarkdown
+      tags: [Markdown]
+      summary: Convierte la primera hoja de un Excel o CSV a Markdown
+      description: >
+        Igual que /excel-json en autenticación, formatos y parseo de la primera
+        hoja, sin schema_id y sin llamada a un modelo. Devuelve el Markdown.
+        El Markdown se devuelve siempre. Con save=true se inserta en la base
+        conectada, según las reglas activas de Markdown, y la respuesta incluye
+        row_id. save=false, o omitir save, no inserta.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MarkdownFileRequest'
+      responses:
+        '200':
+          description: Markdown generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkdownSuccessResponse'
+        '400':
+          description: Archivo ausente, vacío o ilegible, o save distinto de true o false
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: API key inválida o cuenta no activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: La fila choca con una clave única de la base conectada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Archivo demasiado grande
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: No se pudo producir Markdown
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /pdf-markdown:
+    post:
+      operationId: pdfToMarkdown
+      tags: [Markdown]
+      summary: Convierte un PDF a Markdown
+      description: >
+        PDF con texto seleccionable se convierte en local. Un PDF escaneado usa
+        el mismo modelo y el mismo BYOK que /pdf-json, pidiendo solo Markdown.
+        Máximo 15 MB. Sin schema_id.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MarkdownFileRequest'
+      responses:
+        '200':
+          description: Markdown generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkdownSuccessResponse'
+        '400':
+          description: Archivo ausente o que no es un PDF
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: API key inválida o cuenta no activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: PDF por encima de 15 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: PDF escaneado ilegible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo de la llamada al modelo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /doc-markdown:
+    post:
+      operationId: docToMarkdown
+      tags: [Markdown]
+      summary: Convierte un documento de texto a Markdown
+      description: >
+        Acepta .docx, .txt, .md y .rtf, máximo 10 MB, igual que /doc-json.
+        El .doc antiguo se rechaza. Conversión local, sin schema_id y sin modelo.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MarkdownFileRequest'
+      responses:
+        '200':
+          description: Markdown generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkdownSuccessResponse'
+        '400':
+          description: Formato no soportado, archivo vacío o .doc legacy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: API key inválida o cuenta no activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Documento por encima de 10 MB o 300000 caracteres
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /img-markdown:
+    post:
+      operationId: imgToMarkdown
+      tags: [Markdown]
+      summary: Transcribe una imagen a Markdown
+      description: >
+        Mismos formatos (.jpeg, .jpg, .png, .webp, .heic, .heif), firma binaria,
+        máximo 15 MB y control de calidad que /img-json. La llamada al modelo y
+        BYOK es la misma. Sin schema_id. 422 si la imagen no es legible.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MarkdownFileRequest'
+      responses:
+        '200':
+          description: Markdown generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkdownSuccessResponse'
+        '400':
+          description: Formato no soportado o firma binaria inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: API key inválida o cuenta no activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Imagen por encima de 15 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Imagen ilegible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo de la llamada al modelo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /txt-markdown:
+    post:
+      operationId: txtToMarkdown
+      tags: [Markdown]
+      summary: Convierte texto, HTML o XML a Markdown
+      description: >
+        Campo content, sin archivo, máximo 300000 caracteres, igual que
+        /txt-json. Conversión local, sin schema_id y sin modelo.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MarkdownContentRequest'
+      responses:
+        '200':
+          description: Markdown generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkdownSuccessResponse'
+        '400':
+          description: content ausente o vacío
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: API key inválida o cuenta no activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Más de 300000 caracteres
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /audio-markdown:
+    post:
+      operationId: audioToMarkdown
+      tags: [Markdown]
+      summary: Transcribe un audio a Markdown
+      description: >
+        Mismos formatos (.mp3, .wav, .m4a, .ogg), firma binaria, máximo 12 MB y
+        10 minutos que /audio-json. La llamada al modelo y BYOK es la misma.
+        Sin schema_id. 422 si no hay habla inteligible.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MarkdownFileRequest'
+      responses:
+        '200':
+          description: Markdown generado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarkdownSuccessResponse'
+        '400':
+          description: Formato no soportado o firma binaria inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: API key inválida o cuenta no activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Audio por encima de 12 MB o 10 minutos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Audio sin habla inteligible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo de la llamada al modelo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /multi-document:
+    servers:
+      - url: https://claix.dev
+        description: Producción (dominio público Claix)
+    post:
+      operationId: multiDocumentAsk
+      tags:
+        - Ventana de Contexto
+      summary: Responde preguntas cruzando hasta 10 documentos enviados en la misma llamada
+      description: >
+        Equivale a POST https://claix.dev/multi-document.
+        Multipart con hasta 10 archivos (los mismos formatos que Extracción →
+        Markdown: pdf, xlsx, csv, docx, txt, md, rtf, html, xml, jpeg, jpg,
+        png, webp, heic, heif, mp3, wav, m4a, ogg) y un campo `questions` con
+        el mismo JSON que space-context: array de `{ question, format }`
+        (máximo 5 preguntas, 400 caracteres; format ∈ string | int | boolean |
+        timestamp | array). Cada archivo se convierte a Markdown y las
+        preguntas se responden cruzando esos textos. No usa schema_id.
+        `window_context`, `window_time` y `space_id` son opcionales en este
+        endpoint: si window_context es true el documento se conserva durante
+        window_time y, si llega space_id, se asocia a ese espacio. infinity
+        exige el modo persistente activo en la cuenta. La conversión a Markdown
+        no usa estos campos; usa save. La respuesta es `{ user_ask, ia_response,
+        documents_processed, log_id }`. Si la verificación de fuente está
+        activada en consulta a espacio de conocimiento, cada ítem de
+        `ia_response` es `{ value, source }`.
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/multi-document
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MultiDocumentRequest'
+      responses:
+        '200':
+          description: Preguntas respondidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiDocumentSuccessResponse'
+        '400':
+          description: >
+            Falta questions o el archivo, hay más de 10 documentos, formato
+            no soportado, window_time inválido, space_id sin window_context,
+            o infinity sin modo persistente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: API key inválida o cuenta no activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: space_id inexistente para esta cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Algún archivo supera el límite de su formato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Algún archivo no produjo Markdown legible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /excel-json:
     post:
       operationId: excelToJson
@@ -144,7 +597,9 @@ paths:
         Recibe un archivo .xlsx o .csv y un schema_id, y devuelve los datos
         transformados en JSON con las claves exactamente iguales a las
         propiedades definidas en el schema. Si el archivo tiene varias hojas,
-        solo se procesa la primera.
+        solo se procesa la primera. La respuesta incluye `log_id`. Si el schema
+        tiene la verificación de fuente activada, cada propiedad extraída es
+        `{ value, source }` en lugar de un valor plano.
       requestBody:
         required: true
         content:
@@ -307,7 +762,8 @@ paths:
         documento se trata como una única fuente de datos: la respuesta
         siempre contiene exactamente un registro en "data", nunca una fila
         por cada elemento del documento. El tamaño máximo de archivo admitido
-        es 15 MB.
+        es 15 MB. La respuesta incluye `log_id`. Si la verificación de fuente
+        está activada en el schema, cada propiedad extraída es `{ value, source }`.
       requestBody:
         required: true
         content:
@@ -392,7 +848,9 @@ paths:
         Igual que en pdf-json, el documento se trata como una única fuente
         de datos: la respuesta siempre contiene exactamente un registro en
         "data". El tamaño máximo de archivo admitido es 10 MB, y el texto
-        extraído no puede superar los 300.000 caracteres.
+        extraído no puede superar los 300.000 caracteres. La respuesta incluye
+        `log_id`. Si la verificación de fuente está activada en el schema, cada propiedad
+        extraída es `{ value, source }`.
       requestBody:
         required: true
         content:
@@ -479,6 +937,8 @@ paths:
         responde con 422. Igual que en pdf-json, la imagen se trata como una
         única fuente de datos: la respuesta siempre contiene exactamente un
         registro en "data". El tamaño máximo de archivo admitido es 15 MB.
+        La respuesta incluye `log_id`. Si la verificación de fuente está
+        activada en el schema, cada propiedad extraída es `{ value, source }`.
       requestBody:
         required: true
         content:
@@ -558,6 +1018,8 @@ paths:
         datos extraídos. No se sube ningún archivo. Máximo 300.000 caracteres.
         URL pública: POST https://claix.dev/api/txt-json. Tarifa fija
         €0,10 por llamada exitosa (HTTP 200) tras las 15 primeras gratis.
+        La respuesta incluye `log_id`. Si la verificación de fuente está
+        activada en el schema, cada propiedad extraída es `{ value, source }`.
       requestBody:
         required: true
         content:
@@ -615,6 +1077,91 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '502':
           description: Fallo del servicio de IA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /audio-json:
+    post:
+      operationId: audioToJson
+      tags:
+        - Audio a JSON
+      summary: Extrae datos estructurados de un audio según un schema
+      description: >
+        Recibe un archivo de audio (.mp3, .wav, .m4a o .ogg) y un schema_id,
+        y devuelve un único objeto JSON con los datos extraídos de lo hablado,
+        con las claves exactamente iguales a las propiedades definidas en el
+        schema. El análisis lo realiza un modelo multimodal de IA. Antes de
+        extraer datos, el modelo evalúa si el habla es inteligible; si no lo
+        es, responde con 422. El audio se trata como una única fuente de
+        datos: la respuesta siempre contiene exactamente un registro en
+        "data". Tamaño máximo 12 MB. Duración máxima 10 minutos. La
+        respuesta incluye `log_id`. Si la verificación de fuente está
+        activada en el schema, cada propiedad extraída es `{ value, source }`.
+        Con window_context, la transcripción se persiste en markdown.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AudioJsonRequest'
+      responses:
+        '200':
+          description: Audio analizado y datos extraídos correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AudioJsonSuccessResponse'
+        '400':
+          description: >
+            Petición inválida (archivo faltante, formato no soportado,
+            audio vacío, corrupto, firma binaria incoherente, o
+            schema_id incorrecto/faltante/de tipo equivocado)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: El audio supera el tamaño máximo (12 MB) o la duración máxima (10 minutos)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: >
+            Audio ininteligible (silencio, ruido, música sin habla) o sin
+            datos extraíbles según el schema indicado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA encargado de analizar el audio
           content:
             application/json:
               schema:
@@ -698,10 +1245,15 @@ paths:
       description: >
         Equivale a POST https://claix.dev/document-context/{document_id}.
         Recibe un document_id en la URL (el que devolvió una extracción con
-        window_context activo) y un array `questions` en JSON. Carga
-        markdown_content de la tabla documents, llama a Gemini 3.6 con el mismo
-        modelo y generationConfig que el resto de funciones, y devuelve
-        `{ user_ask, ia_response }`. Máximo 5 preguntas y 400 caracteres por
+        window_context activo) y un array `questions` de objetos
+        `{ question, format }` en JSON. Carga markdown_content de la tabla
+        documents, llama a Gemini 3.6 con el mismo modelo y generationConfig
+        que el resto de funciones, y devuelve `{ user_ask, ia_response, log_id }`
+        con respuestas tipadas según el `format` de cada pregunta
+        (`string` | `int` | `boolean` | `timestamp` | `array`, o `null`). Si la
+        verificación de fuente está activada en consulta a documentos, cada ítem
+        de `ia_response` es `{ value, source }` con la evidencia citada del
+        markdown (texto plano). Máximo 5 preguntas y 400 caracteres por
         pregunta. El documento debe pertenecer a la cuenta de la API key y no
         haber expirado.
       externalDocs:
@@ -777,17 +1329,21 @@ paths:
       description: >
         Equivale a POST https://claix.dev/space-context/{space_id}.
         Mismo formato de entrada y de salida que
-        POST /document-context/{document_id}: body con un array `questions`
-        (máximo 5 preguntas, 400 caracteres cada una) y respuesta
-        `{ user_ask, ia_response }` alineada 1:1. La única diferencia es el
-        alcance: en vez de un único documento, carga el markdown_content de
-        todos los documentos vigentes cuyo `espacio_id` sea ese space_id, y
-        responde cruzando la información entre ellos (comparar, sumar,
-        relacionar o consolidar datos repartidos en varios archivos). El
-        espacio debe pertenecer a la cuenta de la API key. Los documentos
-        expirados se ignoran. Para acotar coste y mantener la precisión del
-        modelo se cargan como máximo 50 documentos y 200.000 caracteres en
-        total, repartidos entre ellos.
+        POST /document-context/{document_id}: body con un array `questions` de
+        objetos `{ question, format }` (máximo 5 preguntas, 400 caracteres cada
+        una; `format` ∈ `string` | `int` | `boolean` | `timestamp` | `array`)
+        y respuesta `{ user_ask, ia_response, log_id }` tipada y alineada 1:1.
+        Si la verificación de fuente está activada en consulta a espacio de
+        conocimiento, cada ítem de `ia_response` es `{ value, source }` nombrando
+        `document_id` y `file_name`. La única diferencia de alcance es que, en
+        vez de un único documento, carga el markdown_content de todos los
+        documentos vigentes cuyo `espacio_id` sea ese space_id, y responde
+        cruzando la información entre ellos (comparar, sumar, relacionar o
+        consolidar datos repartidos en varios archivos). El espacio debe
+        pertenecer a la cuenta de la API key. Los documentos expirados se
+        ignoran. Para acotar coste y mantener la precisión del modelo se cargan
+        como máximo 50 documentos y 200.000 caracteres en total, repartidos
+        entre ellos.
       externalDocs:
         description: Documentación humana
         url: https://claix.dev/documentation/window-context
@@ -869,8 +1425,9 @@ paths:
         obligatorio es `name`. Devuelve el `space_id` que luego se envía como
         `space_id` opcional en los endpoints de extracción para agrupar
         documentos, y que identifica el espacio en
-        POST /space-context/{space_id}. Esta llamada es gratuita: no se factura
-        ni consume el cupo de extracciones.
+        POST /space-context/{space_id}. Cada espacio admite como máximo 10
+        documentos. Esta llamada es gratuita: no se factura ni consume el cupo
+        de extracciones.
       externalDocs:
         description: Documentación humana
         url: https://claix.dev/documentation/window-context/create-space
@@ -981,6 +1538,146 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /add-space:
+    servers:
+      - url: https://claix.dev
+        description: Producción (dominio público Claix)
+    post:
+      operationId: addSpace
+      tags:
+        - Espacios de Conocimiento
+      summary: Asigna un documento sin espacio a un espacio de conocimiento
+      description: >
+        Equivale a POST https://claix.dev/add-space. Vincula un documento
+        persistido que aún no tiene `space_id` a un espacio de conocimiento
+        existente de la misma cuenta. Si el documento ya pertenece a un
+        espacio, responde 400. Cada space_id admite como máximo 10 documentos;
+        si el espacio está lleno, responde 400. Útil cuando se extrajo sin
+        `space_id` y después se quiere agrupar para consultas con POST
+        /space-context/{space_id}. Esta llamada es gratuita: no se factura ni
+        consume el cupo de extracciones.
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/add-space
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddSpaceRequest'
+            example:
+              document_id: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+              space_id: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+      responses:
+        '200':
+          description: Documento asignado al espacio correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddSpaceSuccessResponse'
+        '400':
+          description: >
+            Payload inválido (UUIDs ausentes o mal formados), el documento ya
+            tiene un space_id asignado, o el espacio ya tiene 10 documentos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El documento o el espacio no existen o no pertenecen a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /remove-document-from-space/{document_id}:
+    servers:
+      - url: https://claix.dev
+        description: Producción (dominio público Claix)
+    delete:
+      operationId: removeDocumentFromSpace
+      tags:
+        - Espacios de Conocimiento
+      summary: Desacopla un documento de su espacio de conocimiento
+      description: >
+        Equivale a DELETE https://claix.dev/remove-document-from-space/{document_id}.
+        Pone `espacio_id` a null en el documento indicado: el documento sigue
+        existiendo, solo deja de pertenecer al espacio. Sin body ni query
+        params. Si el documento ya no tenía espacio asignado, responde 400.
+        La edge function también acepta POST con la misma URL y el mismo
+        comportamiento. Tras el desacoplado se puede volver a asignar con
+        POST /add-space. Llamada gratuita.
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/remove-document-from-space
+      parameters:
+        - name: document_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: >
+            UUID del documento que tiene un space_id asignado y se quiere
+            desacoplar.
+      responses:
+        '200':
+          description: Documento desacoplado del espacio correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoveDocumentFromSpaceSuccessResponse'
+        '400':
+          description: >
+            document_id ausente o con formato UUID inválido, o el documento ya
+            no tiene espacio asignado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El documento no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (se admiten DELETE y POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /delete-document/{document_id}:
     servers:
       - url: https://claix.dev
@@ -1045,6 +1742,76 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /replace-document:
+    servers:
+      - url: https://claix.dev
+        description: Producción (dominio público Claix)
+    post:
+      operationId: replaceDocument
+      tags:
+        - Ventana de Contexto
+      summary: Sustituye el contenido de un documento con el de otro
+      description: >
+        Equivale a POST https://claix.dev/replace-document. Reemplaza el
+        contenido de `document_id` con el de `new_content_document_id`
+        mediante un RPC. El documento fuente se elimina. Se incrementa la
+        `version` del documento destino. Conserva el mismo `document_id`
+        (y su espacio, si lo tiene) mientras se actualiza el contenido con
+        una nueva extracción. Ambos documentos deben pertenecer a la cuenta
+        de la API key. Esta llamada es gratuita: no se factura ni consume el
+        cupo de extracciones.
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/replace-document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceDocumentRequest'
+            example:
+              document_id: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+              new_content_document_id: a8c3f1e0-2d4b-4a9e-8c71-5f0e2b9d6a3c
+      responses:
+        '200':
+          description: Contenido sustituido; el documento fuente ha sido eliminado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplaceDocumentSuccessResponse'
+        '400':
+          description: >
+            Payload inválido (UUIDs ausentes o mal formados) o la operación no
+            es válida (por ejemplo, ids iguales)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Alguno de los dos documentos no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /agent/excel-json:
     servers:
       - url: https://claix.dev
@@ -1056,12 +1823,13 @@ paths:
       summary: Excel/CSV a JSON con extracción y razonamiento Modo Agente
       description: >
         Equivalente a POST /api/excel-json seguido de una fase agente con Gemini.
-        Devuelve la respuesta de extracción (data, mapa_columnas, etc.) más
-        agent_data según agent_definition. El schema debe tener is_agent_mode
-        activado. Misma petición multipart (file + schema_id) y mismos códigos
-        de error que /api/excel-json; además puede devolver 400 si el schema no
-        tiene Modo Agente o agent_definition inválida, o 502 si falla la fase
-        agente.
+        Devuelve la respuesta de extracción (data, mapa_columnas, log_id, etc.)
+        más agent_data según agent_definition. El schema debe tener is_agent_mode
+        activado. Si la verificación de fuente está activada en el schema, data y agent_data usan
+        `{ value, source }`. Misma petición multipart (file + schema_id) y mismos
+        códigos de error que /api/excel-json; además puede devolver 400 si el
+        schema no tiene Modo Agente o agent_definition inválida, o 502 si falla
+        la fase agente.
       requestBody:
         required: true
         content:
@@ -1132,9 +1900,10 @@ paths:
       summary: PDF a JSON con extracción y razonamiento Modo Agente
       description: >
         Equivalente a POST /api/pdf-json más fase agente. Devuelve data[] con la
-        extracción del schema principal y agent_data con evaluaciones tipadas
-        (booleanos, enteros, strings, opciones cerradas). Requiere
-        is_agent_mode en el schema. Tamaño máximo del PDF: 15 MB.
+        extracción del schema principal, log_id y agent_data con evaluaciones
+        tipadas (booleanos, enteros, strings, opciones cerradas). Requiere
+        is_agent_mode en el schema. Si la verificación de fuente está activada en el schema, data y agent_data
+        usan `{ value, source }`. Tamaño máximo del PDF: 15 MB.
       requestBody:
         required: true
         content:
@@ -1210,9 +1979,11 @@ paths:
         - Modo Agente
       summary: Documento a JSON con extracción y razonamiento Modo Agente
       description: >
-        Equivalente a POST /api/doc-json más fase agente. Devuelve data[] y
-        agent_data. Requiere is_agent_mode. Formatos admitidos: .docx, .txt,
-        .md, .rtf. Tamaño máximo: 10 MB; texto extraído máx. 300.000 caracteres.
+        Equivalente a POST /api/doc-json más fase agente. Devuelve data[],
+        log_id y agent_data. Requiere is_agent_mode. Si la verificación de fuente está activada en el schema,
+        data y agent_data usan `{ value, source }`. Formatos admitidos: .docx,
+        .txt, .md, .rtf. Tamaño máximo: 10 MB; texto extraído máx. 300.000
+        caracteres.
       requestBody:
         required: true
         content:
@@ -1287,9 +2058,10 @@ paths:
         - Modo Agente
       summary: Imagen a JSON con extracción y razonamiento Modo Agente
       description: >
-        Equivalente a POST /api/img-json más fase agente. Devuelve data[] y
-        agent_data. Requiere is_agent_mode. Formatos: JPEG, PNG, WebP, HEIC/HEIF.
-        Tamaño máximo: 15 MB.
+        Equivalente a POST /api/img-json más fase agente. Devuelve data[],
+        log_id y agent_data. Requiere is_agent_mode. Si la verificación de fuente está activada en el schema,
+        data y agent_data usan `{ value, source }`. Formatos: JPEG, PNG, WebP,
+        HEIC/HEIF. Tamaño máximo: 15 MB.
       requestBody:
         required: true
         content:
@@ -1365,8 +2137,9 @@ paths:
       summary: Txt / HTML / XML a JSON con extracción y razonamiento Modo Agente
       description: >
         Equivalente a POST /api/txt-json más fase agente. Recibe content +
-        schema_id (multipart). Devuelve data[] y agent_data. Requiere
-        is_agent_mode. Máximo 300.000 caracteres. URL pública:
+        schema_id (multipart). Devuelve data[], log_id y agent_data. Requiere
+        is_agent_mode. Si la verificación de fuente está activada en el schema, data y agent_data usan
+        `{ value, source }`. Máximo 300.000 caracteres. URL pública:
         POST https://claix.dev/agent/txt-json. Misma tarifa que extracción
         txt-json (€0,10 por llamada exitosa tras el free tier).
       requestBody:
@@ -1431,6 +2204,84 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /agent/audio-json:
+    servers:
+      - url: https://claix.dev
+        description: Base pública Modo Agente
+    post:
+      operationId: agentAudioToJson
+      tags:
+        - Modo Agente
+      summary: Audio a JSON con extracción y razonamiento Modo Agente
+      description: >
+        Equivalente a POST /api/audio-json más fase agente. Devuelve data[],
+        log_id y agent_data. Requiere is_agent_mode. Si la verificación de fuente está activada en el schema,
+        data y agent_data usan `{ value, source }`. Formatos: MP3, WAV, M4A,
+        OGG. Tamaño máximo: 12 MB. Duración máxima: 10 minutos.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AudioJsonRequest'
+      responses:
+        '200':
+          description: Extracción y fase agente completadas correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentAudioJsonSuccessResponse'
+        '400':
+          description: >
+            Petición inválida, schema sin Modo Agente, o agent_definition
+            inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: El audio supera el tamaño máximo (12 MB) o la duración máxima (10 minutos)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Audio ininteligible o sin datos extraíbles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA (extracción o fase agente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /schemas:
     get:
       operationId: listSchemas
@@ -1456,6 +2307,69 @@ paths:
                 $ref: '#/components/schemas/SchemasListResponse'
         '401':
           description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite GET)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /get-schema/{schema_id}:
+    get:
+      operationId: getSchema
+      tags:
+        - Schemas
+      summary: Devuelve un schema concreto de la cuenta asociada al API key
+      description: >
+        Endpoint de solo lectura. Llama
+        `GET https://claix.dev/api/get-schema/{schema_id}`. Dado un API key
+        válido y un `schema_id` en la URL, devuelve ese schema con toda su
+        información (id, nombre, tipo, definición, Modo Agente, ventana de
+        contexto y verificación de fuente) si pertenece a la cuenta. Esta
+        llamada es gratuita: no se factura ni consume el cupo de extracciones.
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/schemas/get-schema
+      parameters:
+        - name: schema_id
+          in: path
+          required: true
+          description: UUID del schema a consultar
+          schema:
+            type: string
+            format: uuid
+            example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+      responses:
+        '200':
+          description: Schema obtenido correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSchemaResponse'
+        '400':
+          description: Falta schema_id en la URL o no es un UUID válido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
           content:
             application/json:
               schema:
@@ -1561,6 +2475,110 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /update-schema/{schema_id}:
+    put:
+      operationId: updateSchema
+      tags:
+        - Schemas
+      summary: Actualiza un schema de la cuenta asociada al API key
+      description: >
+        Llama `PUT https://claix.dev/api/update-schema/{schema_id}` (también
+        se admite POST). Sustituye la configuración completa del schema
+        identificado en la URL con el mismo cuerpo que
+        `POST /api/create-schema`: `name`, `type` y `schema_definition` son
+        obligatorios. Si `is_agent_mode` es true (o se envía
+        `agent_definition`), hay que incluir `agent_definition` con al
+        menos un parámetro. El tipo json-excel no admite Modo Agente. Esta
+        llamada es gratuita: no se factura ni consume el cupo de extracciones.
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/schemas/update-schema
+      parameters:
+        - name: schema_id
+          in: path
+          required: true
+          description: UUID del schema a actualizar
+          schema:
+            type: string
+            format: uuid
+            example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSchemaRequest'
+            example:
+              name: DNI cliente
+              type: img-json
+              schema_definition:
+                nombre_dni:
+                  type: string
+                  description: nombre de la persona del dni
+                numero_dni:
+                  type: string
+                  description: numero de dni
+                fecha_caducidad:
+                  type: string
+                  description: fecha de caducidad del dni
+              is_agent_mode: true
+              agent_definition:
+                edad:
+                  type: integer
+                  description: Edad exacta de la persona pero restale 3
+                calidad_foto:
+                  type: closed
+                  options:
+                    - buena calidad
+                    - mala calidad
+                    - ilegible
+                    - perfecta
+                  description: La calidad de la imagen y la legibilidad de sus datos
+                es_mayor_edad:
+                  type: boolean
+                  description: Es mayor de edad actualmente la persona del dni?
+                fecha_vencimiento:
+                  type: string
+                  description: Cuado le vence el dni y cuanto tiempo queda para ello
+              resumen_agent: Extrae los datos visibles del DNI y razona sobre caducidad.
+      responses:
+        '200':
+          description: Schema actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateSchemaResponse'
+        '400':
+          description: Payload inválido (campos faltantes o definición incorrecta)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite PUT o POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /delete-schema:
     post:
       operationId: deleteSchema
@@ -1637,6 +2655,51 @@ components:
       description: Forma alternativa de enviar la API key como Bearer token.
 
   schemas:
+    MarkdownFileRequest:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: Archivo a convertir. Los formatos admitidos dependen del endpoint.
+        save:
+          type: boolean
+          description: >
+            Si es true, el Markdown se inserta en la base conectada según las
+            reglas activas de Markdown y la respuesta incluye row_id. Si no
+            viene, o es false, solo se devuelve el Markdown. space_id,
+            window_time y window_context se rechazan.
+    MarkdownContentRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          description: Texto plano, HTML o XML. Máximo 300000 caracteres.
+        save:
+          type: boolean
+          description: Igual que en MarkdownFileRequest.
+    MarkdownSuccessResponse:
+      type: object
+      required: [success, markdown]
+      properties:
+        success:
+          type: boolean
+          example: true
+        markdown:
+          type: string
+          description: Documento convertido a Markdown.
+        total_filas_procesadas:
+          type: integer
+          description: Solo en Excel/CSV → Markdown. Filas de la primera hoja.
+        row_id:
+          type: string
+          description: >
+            Presente solo si save era true. Id de la fila insertada en la base conectada.
+        log_id:
+          type: string
+          format: uuid
     ExcelJsonRequest:
       type: object
       required:
@@ -1691,7 +2754,11 @@ components:
             mail de contacto: email_contacto
         data:
           type: array
-          description: Registros transformados según el schema.
+          description: >
+            Registros transformados según el schema. Si la verificación de
+            fuente está activada en el schema, cada propiedad es un objeto { value, source } (source cita
+            columna y fila; si no hay evidencia, requires_human_revision).
+            Si la verificación de fuente está desactivada, los valores siguen siendo planos.
           items:
             type: object
             additionalProperties: true
@@ -1701,6 +2768,8 @@ components:
               empresa: TechSolutions
               email_contacto: ana.gomez@techsolutions.com
               telefono_movil: "+1 (555) 019-2231"
+        log_id:
+          $ref: '#/components/schemas/LogId'
 
     JsonExcelMultipartRequest:
       type: object
@@ -1825,7 +2894,9 @@ components:
           description: >
             Contiene exactamente un objeto con los datos extraídos del PDF,
             según las propiedades definidas en el schema. Los datos no
-            encontrados en el documento se devuelven como null.
+            encontrados en el documento se devuelven como null. Si la
+            verificación de fuente está activada en el schema, cada propiedad es { value, source }
+            (source cita página, párrafo o línea).
           items:
             type: object
             additionalProperties: true
@@ -1835,6 +2906,8 @@ components:
               proveedor: Suministros Industriales del Ebro S.L.
               importe_total: 1284.50
               moneda: EUR
+        log_id:
+          $ref: '#/components/schemas/LogId'
 
     DocJsonRequest:
       type: object
@@ -1889,7 +2962,9 @@ components:
           description: >
             Contiene exactamente un objeto con los datos extraídos del
             documento, según las propiedades definidas en el schema. Los
-            datos no encontrados en el texto se devuelven como null.
+            datos no encontrados en el texto se devuelven como null. Si la
+            verificación de fuente está activada en el schema, cada propiedad es { value, source }
+            (source cita página, párrafo y línea).
           items:
             type: object
             additionalProperties: true
@@ -1899,6 +2974,8 @@ components:
               direccion_inmueble: Calle Mayor 14, 3ºB, Madrid
               renta_mensual: 950.00
               fecha_inicio: "2026-04-01"
+        log_id:
+          $ref: '#/components/schemas/LogId'
 
     TxtJsonRequest:
       type: object
@@ -1981,6 +3058,44 @@ components:
             404 antes de devolver 200.
           example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
 
+    TypedContextQuestion:
+      type: object
+      required:
+        - question
+        - format
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 400
+          description: Texto de la pregunta a responder.
+          example: ¿Cuál es la penalización exacta por cancelación anticipada?
+        format:
+          type: string
+          enum:
+            - string
+            - int
+            - boolean
+            - timestamp
+            - array
+          description: >
+            Tipo JSON esperado para la respuesta correspondiente. Si el dato
+            existe pero no se puede tipar con seguridad, la API devuelve null.
+          example: string
+
+    ContextAnswerValue:
+      description: >
+        Valor tipado según el format de la pregunta: string, int (entero),
+        boolean, timestamp (string ISO preferible), array, o null si no está
+        o no se puede tipar.
+      nullable: true
+      oneOf:
+        - type: string
+        - type: integer
+        - type: boolean
+        - type: array
+          items: {}
+
     WindowContextRequest:
       type: object
       required:
@@ -1991,15 +3106,16 @@ components:
           minItems: 1
           maxItems: 5
           items:
-            type: string
-            minLength: 1
-            maxLength: 400
+            $ref: '#/components/schemas/TypedContextQuestion'
           description: >
-            Preguntas a responder usando solo el markdown persistido.
-            Máximo 5 por turno, 400 caracteres cada una.
+            Preguntas tipadas a responder usando solo el markdown persistido.
+            Máximo 5 por turno, 400 caracteres por question. Cada ítem exige
+            question y format (string | int | boolean | timestamp | array).
           example:
-            - ¿Cuál es la penalización exacta por cancelación anticipada?
-            - ¿Qué empresa figura como arrendataria y cuál es su CIF?
+            - question: ¿Cuál es la penalización exacta por cancelación anticipada?
+              format: string
+            - question: ¿Qué empresa figura como arrendataria y cuál es su CIF?
+              format: string
 
     WindowContextSuccessResponse:
       type: object
@@ -2010,22 +3126,30 @@ components:
         user_ask:
           type: array
           items:
-            type: string
-          description: Preguntas enviadas, en el mismo orden.
+            $ref: '#/components/schemas/TypedContextQuestion'
+          description: Preguntas enviadas (con su format), en el mismo orden.
           example:
-            - ¿Cuál es la penalización exacta por cancelación anticipada?
-            - ¿Qué empresa figura como arrendataria y cuál es su CIF?
+            - question: ¿Cuál es la penalización exacta por cancelación anticipada?
+              format: string
+            - question: ¿Qué empresa figura como arrendataria y cuál es su CIF?
+              format: string
         ia_response:
           type: array
-          items:
-            type: string
-            nullable: true
           description: >
-            Respuestas alineadas 1:1 con user_ask. null si el dato no está
-            en el documento.
+            Respuestas alineadas 1:1 con user_ask, tipadas según format
+            (string, int, boolean, timestamp, array) o null. Si la verificación
+            de fuente está activada en consulta a documentos, cada ítem es
+            { value, source }: source cita el fragmento del markdown (texto
+            plano); si no hay evidencia, requires_human_revision.
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/ContextAnswerValue'
+              - $ref: '#/components/schemas/SourcedField'
           example:
             - El 15 % del importe restante del contrato.
             - Inversiones Delta S.L., CIF B12345678
+        log_id:
+          $ref: '#/components/schemas/LogId'
 
     CreateSpaceRequest:
       type: object
@@ -2090,6 +3214,180 @@ components:
             404 antes de devolver 200.
           example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
 
+    AddSpaceRequest:
+      type: object
+      required:
+        - document_id
+        - space_id
+      properties:
+        document_id:
+          type: string
+          format: uuid
+          description: >
+            UUID del documento sin space_id. Debe existir y pertenecer a la
+            cuenta de la API key.
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+        space_id:
+          type: string
+          format: uuid
+          description: >
+            UUID del espacio de destino, el que devolvió POST /create-space.
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+
+    AddSpaceSuccessResponse:
+      type: object
+      required:
+        - success
+        - document_id
+        - space_id
+        - space_name
+        - file_name
+        - version
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Siempre true en una respuesta 200.
+          example: true
+        document_id:
+          type: string
+          format: uuid
+          description: Documento asignado al espacio.
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+        space_id:
+          type: string
+          format: uuid
+          description: Espacio al que se ha añadido el documento.
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+        space_name:
+          type: string
+          description: Nombre del espacio de destino.
+          example: Proveedores 2026
+        file_name:
+          type: string
+          description: Nombre de archivo del documento.
+          example: factura.pdf
+        version:
+          type: number
+          description: Versión actual del documento.
+          example: 1
+        message:
+          type: string
+          description: Mensaje legible de confirmación.
+          example: Documento añadido al espacio de conocimiento.
+
+    ReplaceDocumentRequest:
+      type: object
+      required:
+        - document_id
+        - new_content_document_id
+      properties:
+        document_id:
+          type: string
+          format: uuid
+          description: >
+            Documento destino cuyo contenido se sustituye. Conserva su id
+            (y su espacio, si lo tiene).
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+        new_content_document_id:
+          type: string
+          format: uuid
+          description: >
+            Documento fuente cuyo contenido se copia. Se elimina tras el swap.
+          example: a8c3f1e0-2d4b-4a9e-8c71-5f0e2b9d6a3c
+
+    ReplaceDocumentSuccessResponse:
+      type: object
+      required:
+        - success
+        - swap_id
+        - document_id
+        - source_document_id
+        - file_name
+        - version
+        - swaps_count
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Siempre true en una respuesta 200.
+          example: true
+        swap_id:
+          type: string
+          format: uuid
+          description: Identificador de la operación de swap.
+          example: c1e7a4b2-9f0d-4e8a-b3c5-1d2e3f4a5b6c
+        document_id:
+          type: string
+          format: uuid
+          description: Documento destino (id estable).
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+        source_document_id:
+          type: string
+          format: uuid
+          description: Documento fuente que se eliminó tras el swap.
+          example: a8c3f1e0-2d4b-4a9e-8c71-5f0e2b9d6a3c
+        file_name:
+          type: string
+          description: Nombre de archivo del documento destino.
+          example: factura.pdf
+        version:
+          type: number
+          description: Versión incrementada tras el swap.
+          example: 2
+        swaps_count:
+          type: number
+          description: Número acumulado de sustituciones del documento destino.
+          example: 1
+        message:
+          type: string
+          description: Mensaje legible de confirmación.
+          example: Contenido sustituido. El documento fuente ha sido eliminado.
+
+    RemoveDocumentFromSpaceSuccessResponse:
+      type: object
+      required:
+        - success
+        - document_id
+        - previous_space_id
+        - espacio_id
+        - file_name
+        - version
+        - message
+      properties:
+        success:
+          type: boolean
+          description: Siempre true en una respuesta 200.
+          example: true
+        document_id:
+          type: string
+          format: uuid
+          description: Documento desacoplado del espacio.
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+        previous_space_id:
+          type: string
+          format: uuid
+          description: Espacio del que se ha quitado el documento.
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+        espacio_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Siempre null tras la operación.
+          example: null
+        file_name:
+          type: string
+          description: Nombre de archivo del documento.
+          example: factura.pdf
+        version:
+          type: number
+          description: Versión actual del documento.
+          example: 1
+        message:
+          type: string
+          description: Mensaje legible de confirmación.
+          example: Documento desacoplado del espacio. Ahora está sin space_id.
+
     SpaceContextRequest:
       type: object
       required:
@@ -2100,16 +3398,17 @@ components:
           minItems: 1
           maxItems: 5
           items:
-            type: string
-            minLength: 1
-            maxLength: 400
+            $ref: '#/components/schemas/TypedContextQuestion'
           description: >
-            Preguntas a responder usando solo el markdown persistido de los
-            documentos del espacio. Mismo formato y mismos límites que
-            document-context: máximo 5 por turno, 400 caracteres cada una.
+            Preguntas tipadas a responder usando solo el markdown persistido de
+            los documentos del espacio. Mismo formato y mismos límites que
+            document-context: máximo 5 por turno, 400 caracteres por question,
+            con format obligatorio (string | int | boolean | timestamp | array).
           example:
-            - ¿Qué proveedor factura más en total sumando todas las facturas?
-            - ¿Hay algún contrato cuyo importe no coincida con su factura?
+            - question: ¿Qué proveedor factura más en total sumando todas las facturas?
+              format: string
+            - question: ¿Hay algún contrato cuyo importe no coincida con su factura?
+              format: boolean
 
     SpaceContextSuccessResponse:
       type: object
@@ -2120,24 +3419,95 @@ components:
         user_ask:
           type: array
           items:
-            type: string
-          description: Preguntas enviadas, en el mismo orden.
+            $ref: '#/components/schemas/TypedContextQuestion'
+          description: Preguntas enviadas (con su format), en el mismo orden.
           example:
-            - ¿Qué proveedor factura más en total sumando todas las facturas?
-            - ¿Hay algún contrato cuyo importe no coincida con su factura?
+            - question: ¿Qué proveedor factura más en total sumando todas las facturas?
+              format: string
+            - question: ¿Hay algún contrato cuyo importe no coincida con su factura?
+              format: boolean
         ia_response:
           type: array
-          items:
-            type: string
-            nullable: true
           description: >
-            Respuestas alineadas 1:1 con user_ask. null si el dato no está en
-            ninguno de los documentos del espacio. Cuando la respuesta procede
-            de cruzar varios documentos, incluye una referencia breve a los
-            archivos de origen.
+            Respuestas alineadas 1:1 con user_ask, tipadas según format o null.
+            Si la verificación de fuente está activada en consulta a espacio de
+            conocimiento, cada ítem es { value, source } nombrando document_id
+            y file_name (y el cruce si aplica). Si no hay evidencia, source es
+            requires_human_revision.
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/ContextAnswerValue'
+              - $ref: '#/components/schemas/SourcedField'
           example:
             - Suministros Omega S.A., 48.320 € entre tres facturas (feb, mar, abr).
-            - Sí, contrato-omega.pdf indica 12.000 € y factura-omega-03.pdf cobra 13.450 €.
+            - true
+        log_id:
+          $ref: '#/components/schemas/LogId'
+
+    MultiDocumentRequest:
+      type: object
+      required: [file, questions]
+      properties:
+        file:
+          type: string
+          format: binary
+          description: >
+            Documento a convertir. Se puede repetir el campo hasta 10 veces.
+            También se aceptan los nombres files y documents. Formatos: pdf,
+            xlsx, csv, docx, txt, md, rtf, html, xml, jpeg, jpg, png, webp,
+            heic, heif, mp3, wav, m4a y ogg.
+        questions:
+          type: string
+          description: >
+            JSON con un array de { question, format }. Mismos límites que
+            space-context: máximo 5 preguntas, 400 caracteres por question,
+            format ∈ string | int | boolean | timestamp | array.
+          example: >
+            [{"question":"¿Qué proveedor factura más en total?","format":"string"}]
+        window_context:
+          type: boolean
+          description: >
+            Si es true, cada documento convertido se conserva. Si no viene,
+            solo se usan para responder y no se conserva ninguno.
+        window_time:
+          type: string
+          description: >
+            Obligatorio si window_context es true. Misma lista de minutos que
+            al convertir a Markdown, o "infinity" (exige modo persistente).
+        space_id:
+          type: string
+          format: uuid
+          description: >
+            Opcional, y solo si window_context es true. Espacio de conocimiento
+            al que se asocian los documentos conservados.
+    MultiDocumentSuccessResponse:
+      type: object
+      required:
+        - user_ask
+        - ia_response
+        - documents_processed
+      properties:
+        user_ask:
+          type: array
+          items:
+            $ref: '#/components/schemas/TypedContextQuestion'
+          description: Preguntas enviadas, en el mismo orden.
+        ia_response:
+          type: array
+          description: >
+            Respuestas alineadas 1:1 con user_ask, tipadas según format o null.
+            Si la verificación de fuente está activada en consulta a espacio de
+            conocimiento, cada ítem es { value, source }.
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/ContextAnswerValue'
+              - $ref: '#/components/schemas/SourcedField'
+        documents_processed:
+          type: integer
+          description: Número de documentos convertidos y usados para responder.
+          example: 3
+        log_id:
+          $ref: '#/components/schemas/LogId'
 
     ImgJsonRequest:
       type: object
@@ -2189,7 +3559,8 @@ components:
           description: >
             Contiene exactamente un objeto con los datos extraídos de la
             imagen, según las propiedades definidas en el schema. Los datos
-            no encontrados se devuelven como null.
+            no encontrados se devuelven como null. Si la verificación de fuente está activada en el schema,
+            cada propiedad es { value, source } (zona o etiqueta visible).
           items:
             type: object
             additionalProperties: true
@@ -2199,6 +3570,100 @@ components:
               proveedor: Suministros Industriales del Ebro S.L.
               importe_total: 1284.50
               moneda: EUR
+        log_id:
+          $ref: '#/components/schemas/LogId'
+
+    AudioJsonRequest:
+      type: object
+      required:
+        - file
+        - schema_id
+      properties:
+        file:
+          type: string
+          format: binary
+          description: >
+            Audio a analizar. Formatos admitidos: .mp3, .wav, .m4a y .ogg.
+            Tamaño máximo admitido: 12 MB. Duración máxima: 10 minutos.
+        schema_id:
+          type: string
+          format: uuid
+          description: >
+            Identificador del schema (previamente creado) de tipo
+            "Audio a JSON".
+          example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
+        space_id:
+          type: string
+          format: uuid
+          description: >
+            Opcional. Espacio de conocimiento al que se asocia el documento
+            guardado. Debe pertenecer al mismo usuario dueño de la API key.
+            Solo tiene efecto cuando el schema tiene la ventana de contexto
+            activada, que es cuando el documento se guarda.
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+
+    AudioJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Notas de llamada
+        total_registros:
+          type: integer
+          description: >
+            Siempre 1 en este endpoint: el audio completo se trata como
+            una única fuente de datos.
+          example: 1
+        data:
+          type: array
+          description: >
+            Contiene exactamente un objeto con los datos extraídos del
+            audio, según las propiedades definidas en el schema. Los datos
+            no encontrados se devuelven como null. Si la verificación de fuente está activada en el schema,
+            cada propiedad es { value, source } (fragmento hablado o momento).
+          items:
+            type: object
+            additionalProperties: true
+          example:
+            - cliente: Suministros Industriales del Ebro S.L.
+              numero_factura: F-2026-00456
+              fecha_emision: "2026-03-14"
+              importe_total: 1284.50
+        log_id:
+          $ref: '#/components/schemas/LogId'
+
+    SourcedField:
+      type: object
+      required:
+        - value
+        - source
+      properties:
+        value:
+          description: >
+            Dato extraído o respuesta. null si no se encontró o no es
+            determinable.
+          nullable: true
+        source:
+          type: string
+          description: >
+            Evidencia de dónde se encontró el valor. Si no hay evidencia,
+            el valor exacto es requires_human_revision.
+          example: "página 2, párrafo 3"
+
+    LogId:
+      type: string
+      format: uuid
+      nullable: true
+      description: >
+        Identificador del registro en usage_logs de esta llamada. Presente
+        en respuestas de éxito de extracción, modo agente, document-context
+        y space-context, y en la mayoría de errores una vez autenticada la
+        petición. Puede omitirse si el insert del log falla.
+      example: 7c2e1a90-4b3d-4f8a-9e21-6d5c8b0a1f34
 
     AgentData:
       type: object
@@ -2207,7 +3672,8 @@ components:
         schema. Las claves coinciden con los nombres definidos en el dashboard;
         los tipos dependen de cada campo (boolean, integer, string u opción
         cerrada). Opcionalmente puede incluir resumen_agent como string si está
-        configurado en el schema.
+        configurado en el schema. Si la verificación de fuente está activada en el schema, cada campo (salvo
+        resumen_agent si se pide como texto plano) es { value, source }.
       additionalProperties: true
       example:
         clausula_penalizacion: true
@@ -2248,6 +3714,16 @@ components:
     AgentImgJsonSuccessResponse:
       allOf:
         - $ref: '#/components/schemas/ImgJsonSuccessResponse'
+        - type: object
+          required:
+            - agent_data
+          properties:
+            agent_data:
+              $ref: '#/components/schemas/AgentData'
+
+    AgentAudioJsonSuccessResponse:
+      allOf:
+        - $ref: '#/components/schemas/AudioJsonSuccessResponse'
         - type: object
           required:
             - agent_data
@@ -2320,6 +3796,7 @@ components:
             - doc-json
             - img-json
             - txt-json
+            - audio-json
           example: pdf-json
         schema_definition:
           type: object
@@ -2379,6 +3856,13 @@ components:
             tener modo persistente activo (users.infinity_mode = true). Se
             guarda como window_context true y window_time 0.
           example: null
+        cita_por_campo:
+          type: boolean
+          description: >
+            Verificación de fuente. Si es true, cada campo extraído (y cada
+            campo de agent_data) se devuelve como { value, source }. Por
+            defecto false: el formato de salida no cambia.
+          example: false
         created_at:
           type: string
           format: date-time
@@ -2420,6 +3904,7 @@ components:
             - doc-json
             - img-json
             - txt-json
+            - audio-json
           description: Tipo de conversión para el que se usará este schema.
           example: img-json
         schema_definition:
@@ -2468,6 +3953,13 @@ components:
             `infinity` para ventana sin caducidad; requiere modo persistente
             activo en la cuenta. Se persiste como window_time 0.
           example: null
+        cita_por_campo:
+          type: boolean
+          description: >
+            Activa la verificación de fuente en las extracciones y en modo
+            agente. Por defecto false. Si es true, cada campo de data y
+            agent_data es { value, source }.
+          example: false
 
     CreateSchemaResponse:
       type: object
@@ -2514,3 +4006,5 @@ components:
           type: string
           description: Información técnica adicional (solo presente en algunos casos).
           example: "Missing required field 'schema_id' in multipart/form-data body."
+        log_id:
+          $ref: '#/components/schemas/LogId'

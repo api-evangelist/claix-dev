@@ -1,8 +1,84 @@
 openapi: 3.2.0
 info:
   title: Claix Modo Agente API
-  description: Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make).
-  version: 1.8.2
+  description: 'Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes, audio) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make). Source Tracing opcional: citas por campo `{ value, source }` o `requires_human_revision` si falta evidencia. Expone seis endpoints principales de conversión:
+
+    - **Excel/CSV → JSON**: recibe un archivo Excel o CSV y lo transforma en
+
+    JSON según la estructura definida en un "schema" previamente creado. - **JSON → Excel**: recibe uno o varios documentos JSON y devuelve un
+
+    archivo Excel (.xlsx) binario, según la estructura definida en un
+
+    "schema" previamente creado. - **PDF → JSON**: recibe un archivo PDF (de texto o escaneado) y devuelve
+
+    un objeto JSON con los datos extraídos del documento, según la
+
+    estructura definida en un "schema" previamente creado. - **Documento → JSON**: recibe un archivo de documento (.docx, .txt, .md
+
+    o .rtf) y devuelve un objeto JSON con los datos extraídos, según la
+
+    estructura definida en un "schema" previamente creado. - **Imagen → JSON**: recibe una imagen (.jpeg, .jpg, .png, .webp, .heic
+
+    o .heif) y devuelve un objeto JSON con los datos extraídos del
+
+    contenido visible, según la estructura definida en un "schema"
+
+    previamente creado. - **Txt / HTML / XML → JSON**: recibe el campo `content` (texto plano,
+
+    HTML o XML ya procesado, sin archivo) y devuelve un objeto JSON con los
+
+    datos extraídos, según un schema de tipo txt-json. Máximo 300.000
+
+    caracteres. Tarifa fija €0,10 por llamada exitosa tras el free tier. - **Excel/CSV → Markdown**, **PDF → Markdown**, **Documento → Markdown**,
+
+    **Imagen → Markdown**, **Txt/HTML/XML → Markdown** y **Audio → Markdown**:
+
+    misma autenticación, mismos formatos y mismos límites que el endpoint JSON
+
+    equivalente. No piden schema_id. save=true inserta el Markdown en la base
+
+    conectada y la respuesta incluye row_id. PDF con texto, Excel, documentos y
+
+    texto se convierten en local. PDF escaneado, imagen y audio llaman al
+
+    mismo modelo con BYOK. - **Audio → JSON**: recibe un archivo de audio (.mp3, .wav, .m4a o .ogg)
+
+    y un schema_id, y devuelve un único objeto JSON con los datos extraídos
+
+    de lo hablado. Tamaño máximo 12 MB y duración máxima 10 minutos. Si el
+
+    audio no es inteligible, responde 422. Además, expone endpoints para consultar y gestionar los schemas de la cuenta:
+
+    - **Listar schemas**: dado un API key, devuelve todos los schemas de esa
+
+    cuenta con su información completa (id, nombre, tipo y definición). - **Obtener schema**: dado un `schema_id` en la URL, devuelve ese schema
+
+    con su definición completa. - **Crear schema**: crea un schema con `name`, `type`, `schema_definition`
+
+    y, opcionalmente, Modo Agente (`is_agent_mode`, `agent_definition`,
+
+    `resumen_agent`) y verificación de fuente. - **Actualizar schema**: sustituye la configuración completa de un schema
+
+    existente (`schema_id` en la URL; mismo body que crear). - **Borrar schema**: elimina un schema de la cuenta por `schema_id`. **Ventana de Contexto** — Tras una extracción con `window_context` activo, el `document_id` devuelto permite consultar el contenido bruto, preguntar al markdown persistido o eliminar el documento:
+
+    - **GET https://claix.dev/get-document/{document_id}**: devuelve el
+
+    contenido bruto y metadatos del documento (`content`, `file_name`,
+
+    `schema_id`, `processed_at`). Llamada gratuita. - **POST https://claix.dev/document-context/{document_id}**: body
+
+    `{ "questions": [{ "question": "...", "format": "string"|"int"|"boolean"|"timestamp"|"array" }] }`
+
+    (máximo 5 preguntas, 400 caracteres cada una). Respuesta
+
+    `{ user_ask, ia_response, log_id }`. Cada respuesta respeta el `format`
+
+    pedido (o `null`). Si la verificación de fuente está activada en consulta
+
+    a documentos, cada ítem de `ia_response` es `{ value, source }`. - **DELETE https://claix.dev/delete-document/{document_id}**: elimina el
+
+    documento persistido por `document_id`. Sin body ni query params. Respuesta `{ document_id }`.'
+  version: 1.12.0
 servers:
 - url: https://claix.dev/api
   description: Producción (dominio público Claix)
@@ -11,7 +87,7 @@ security:
 - BearerAuth: []
 tags:
 - name: Modo Agente
-  description: 'Extracción estructurada más razonamiento semántico en una sola llamada. Requiere schema con is_agent_mode activado y agent_definition configurada. URLs públicas: POST /agent/excel-json, /agent/pdf-json, /agent/doc-json, /agent/img-json, /agent/txt-json (documentación humana en /documentation/agent/*).'
+  description: 'Extracción estructurada más razonamiento semántico en una sola llamada. Requiere schema con is_agent_mode activado y agent_definition configurada. URLs públicas: POST /agent/excel-json, /agent/pdf-json, /agent/doc-json, /agent/img-json, /agent/txt-json, /agent/audio-json (documentación humana en /documentation/agent/*).'
 paths:
   /agent/excel-json:
     servers:
@@ -22,7 +98,7 @@ paths:
       tags:
       - Modo Agente
       summary: Excel/CSV a JSON con extracción y razonamiento Modo Agente
-      description: Equivalente a POST /api/excel-json seguido de una fase agente con Gemini. Devuelve la respuesta de extracción (data, mapa_columnas, etc.) más agent_data según agent_definition. El schema debe tener is_agent_mode activado. Misma petición multipart (file + schema_id) y mismos códigos de error que /api/excel-json; además puede devolver 400 si el schema no tiene Modo Agente o agent_definition inválida, o 502 si falla la fase agente.
+      description: Equivalente a POST /api/excel-json seguido de una fase agente con Gemini. Devuelve la respuesta de extracción (data, mapa_columnas, log_id, etc.) más agent_data según agent_definition. El schema debe tener is_agent_mode activado. Si la verificación de fuente está activada en el schema, data y agent_data usan `{ value, source }`. Misma petición multipart (file + schema_id) y mismos códigos de error que /api/excel-json; además puede devolver 400 si el schema no tiene Modo Agente o agent_definition inválida, o 502 si falla la fase agente.
       requestBody:
         required: true
         content:
@@ -91,7 +167,7 @@ paths:
       tags:
       - Modo Agente
       summary: PDF a JSON con extracción y razonamiento Modo Agente
-      description: 'Equivalente a POST /api/pdf-json más fase agente. Devuelve data[] con la extracción del schema principal y agent_data con evaluaciones tipadas (booleanos, enteros, strings, opciones cerradas). Requiere is_agent_mode en el schema. Tamaño máximo del PDF: 15 MB.'
+      description: 'Equivalente a POST /api/pdf-json más fase agente. Devuelve data[] con la extracción del schema principal, log_id y agent_data con evaluaciones tipadas (booleanos, enteros, strings, opciones cerradas). Requiere is_agent_mode en el schema. Si la verificación de fuente está activada en el schema, data y agent_data usan `{ value, source }`. Tamaño máximo del PDF: 15 MB.'
       requestBody:
         required: true
         content:
@@ -166,7 +242,7 @@ paths:
       tags:
       - Modo Agente
       summary: Documento a JSON con extracción y razonamiento Modo Agente
-      description: 'Equivalente a POST /api/doc-json más fase agente. Devuelve data[] y agent_data. Requiere is_agent_mode. Formatos admitidos: .docx, .txt, .md, .rtf. Tamaño máximo: 10 MB; texto extraído máx. 300.000 caracteres.'
+      description: 'Equivalente a POST /api/doc-json más fase agente. Devuelve data[], log_id y agent_data. Requiere is_agent_mode. Si la verificación de fuente está activada en el schema, data y agent_data usan `{ value, source }`. Formatos admitidos: .docx, .txt, .md, .rtf. Tamaño máximo: 10 MB; texto extraído máx. 300.000 caracteres.'
       requestBody:
         required: true
         content:
@@ -239,7 +315,7 @@ paths:
       tags:
       - Modo Agente
       summary: Imagen a JSON con extracción y razonamiento Modo Agente
-      description: 'Equivalente a POST /api/img-json más fase agente. Devuelve data[] y agent_data. Requiere is_agent_mode. Formatos: JPEG, PNG, WebP, HEIC/HEIF. Tamaño máximo: 15 MB.'
+      description: 'Equivalente a POST /api/img-json más fase agente. Devuelve data[], log_id y agent_data. Requiere is_agent_mode. Si la verificación de fuente está activada en el schema, data y agent_data usan `{ value, source }`. Formatos: JPEG, PNG, WebP, HEIC/HEIF. Tamaño máximo: 15 MB.'
       requestBody:
         required: true
         content:
@@ -312,7 +388,7 @@ paths:
       tags:
       - Modo Agente
       summary: Txt / HTML / XML a JSON con extracción y razonamiento Modo Agente
-      description: 'Equivalente a POST /api/txt-json más fase agente. Recibe content + schema_id (multipart). Devuelve data[] y agent_data. Requiere is_agent_mode. Máximo 300.000 caracteres. URL pública: POST https://claix.dev/agent/txt-json. Misma tarifa que extracción txt-json (€0,10 por llamada exitosa tras el free tier).'
+      description: 'Equivalente a POST /api/txt-json más fase agente. Recibe content + schema_id (multipart). Devuelve data[], log_id y agent_data. Requiere is_agent_mode. Si la verificación de fuente está activada en el schema, data y agent_data usan `{ value, source }`. Máximo 300.000 caracteres. URL pública: POST https://claix.dev/agent/txt-json. Misma tarifa que extracción txt-json (€0,10 por llamada exitosa tras el free tier).'
       requestBody:
         required: true
         content:
@@ -374,56 +450,127 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /agent/audio-json:
+    servers:
+    - url: https://claix.dev
+      description: Base pública Modo Agente
+    post:
+      operationId: agentAudioToJson
+      tags:
+      - Modo Agente
+      summary: Audio a JSON con extracción y razonamiento Modo Agente
+      description: 'Equivalente a POST /api/audio-json más fase agente. Devuelve data[], log_id y agent_data. Requiere is_agent_mode. Si la verificación de fuente está activada en el schema, data y agent_data usan `{ value, source }`. Formatos: MP3, WAV, M4A, OGG. Tamaño máximo: 12 MB. Duración máxima: 10 minutos.'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AudioJsonRequest'
+      responses:
+        '200':
+          description: Extracción y fase agente completadas correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentAudioJsonSuccessResponse'
+        '400':
+          description: 'Petición inválida, schema sin Modo Agente, o agent_definition inválida
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El schema_id no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: El audio supera el tamaño máximo (12 MB) o la duración máxima (10 minutos)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Audio ininteligible o sin datos extraíbles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA (extracción o fase agente)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
-    AgentImgJsonSuccessResponse:
-      allOf:
-      - $ref: '#/components/schemas/ImgJsonSuccessResponse'
-      - type: object
-        required:
-        - agent_data
-        properties:
-          agent_data:
-            $ref: '#/components/schemas/AgentData'
-    AgentExcelJsonSuccessResponse:
-      allOf:
-      - $ref: '#/components/schemas/ExcelJsonSuccessResponse'
-      - type: object
-        required:
-        - agent_data
-        properties:
-          agent_data:
-            $ref: '#/components/schemas/AgentData'
-    PdfJsonSuccessResponse:
+    ImgJsonRequest:
       type: object
+      required:
+      - file
+      - schema_id
       properties:
-        success:
-          type: boolean
-          example: true
-        schema_utilizado:
+        file:
           type: string
-          description: Nombre del schema aplicado.
-          example: Facturas de Proveedores
-        total_registros:
-          type: integer
-          description: 'Siempre 1 en este endpoint: el documento completo se trata como una única fuente de datos, no como una tabla de múltiples filas.
+          format: binary
+          description: 'Imagen a analizar. Formatos admitidos: .jpeg, .jpg, .png, .webp, .heic y .heif. Tamaño máximo admitido: 15 MB.
 
             '
-          example: 1
-        data:
-          type: array
-          description: 'Contiene exactamente un objeto con los datos extraídos del PDF, según las propiedades definidas en el schema. Los datos no encontrados en el documento se devuelven como null.
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "Imagen a JSON".
 
             '
-          items:
-            type: object
-            additionalProperties: true
-          example:
-          - numero_factura: F-2026-00456
-            fecha_emision: '2026-03-14'
-            proveedor: Suministros Industriales del Ebro S.L.
-            importe_total: 1284.5
-            moneda: EUR
+          example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    AgentAudioJsonSuccessResponse:
+      allOf:
+      - $ref: '#/components/schemas/AudioJsonSuccessResponse'
+      - type: object
+        required:
+        - agent_data
+        properties:
+          agent_data:
+            $ref: '#/components/schemas/AgentData'
+    AgentData:
+      type: object
+      description: 'Respuestas tipadas de la fase Modo Agente según agent_definition del schema. Las claves coinciden con los nombres definidos en el dashboard; los tipos dependen de cada campo (boolean, integer, string u opción cerrada). Opcionalmente puede incluir resumen_agent como string si está configurado en el schema. Si la verificación de fuente está activada en el schema, cada campo (salvo resumen_agent si se pide como texto plano) es { value, source }.
+
+        '
+      additionalProperties: true
+      example:
+        clausula_penalizacion: true
+        salario: 55000
+        es_parcial: false
+        resumen_contrato: Contrato indefinido con jornada completa.
     AgentPdfJsonSuccessResponse:
       allOf:
       - $ref: '#/components/schemas/PdfJsonSuccessResponse'
@@ -433,6 +580,67 @@ components:
         properties:
           agent_data:
             $ref: '#/components/schemas/AgentData'
+    AgentDocJsonSuccessResponse:
+      allOf:
+      - $ref: '#/components/schemas/DocJsonSuccessResponse'
+      - type: object
+        required:
+        - agent_data
+        properties:
+          agent_data:
+            $ref: '#/components/schemas/AgentData'
+    DocJsonRequest:
+      type: object
+      required:
+      - file
+      - schema_id
+      properties:
+        file:
+          type: string
+          format: binary
+          description: 'Archivo de documento a analizar. Formatos admitidos: .docx (application/vnd.openxmlformats-officedocument.wordprocessingml.document), .txt (text/plain), .md (text/markdown) y .rtf (application/rtf). El formato legacy .doc (application/msword) NO está soportado. Tamaño máximo admitido: 10 MB.
+
+            '
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "Documento a JSON".
+
+            '
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    AudioJsonRequest:
+      type: object
+      required:
+      - file
+      - schema_id
+      properties:
+        file:
+          type: string
+          format: binary
+          description: 'Audio a analizar. Formatos admitidos: .mp3, .wav, .m4a y .ogg. Tamaño máximo admitido: 12 MB. Duración máxima: 10 minutos.
+
+            '
+        schema_id:
+          type: string
+          format: uuid
+          description: 'Identificador del schema (previamente creado) de tipo "Audio a JSON".
+
+            '
+          example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
     ImgJsonSuccessResponse:
       type: object
       properties:
@@ -451,7 +659,7 @@ components:
           example: 1
         data:
           type: array
-          description: 'Contiene exactamente un objeto con los datos extraídos de la imagen, según las propiedades definidas en el schema. Los datos no encontrados se devuelven como null.
+          description: 'Contiene exactamente un objeto con los datos extraídos de la imagen, según las propiedades definidas en el schema. Los datos no encontrados se devuelven como null. Si la verificación de fuente está activada en el schema, cada propiedad es { value, source } (zona o etiqueta visible).
 
             '
           items:
@@ -463,45 +671,36 @@ components:
             proveedor: Suministros Industriales del Ebro S.L.
             importe_total: 1284.5
             moneda: EUR
-    AgentData:
-      type: object
-      description: 'Respuestas tipadas de la fase Modo Agente según agent_definition del schema. Las claves coinciden con los nombres definidos en el dashboard; los tipos dependen de cada campo (boolean, integer, string u opción cerrada). Opcionalmente puede incluir resumen_agent como string si está configurado en el schema.
-
-        '
-      additionalProperties: true
-      example:
-        clausula_penalizacion: true
-        salario: 55000
-        es_parcial: false
-        resumen_contrato: Contrato indefinido con jornada completa.
-    AgentDocJsonSuccessResponse:
+        log_id:
+          $ref: '#/components/schemas/LogId'
+    AgentExcelJsonSuccessResponse:
       allOf:
-      - $ref: '#/components/schemas/DocJsonSuccessResponse'
+      - $ref: '#/components/schemas/ExcelJsonSuccessResponse'
       - type: object
         required:
         - agent_data
         properties:
           agent_data:
             $ref: '#/components/schemas/AgentData'
-    PdfJsonRequest:
+    TxtJsonRequest:
       type: object
       required:
-      - file
+      - content
       - schema_id
       properties:
-        file:
+        content:
           type: string
-          format: binary
-          description: 'Archivo PDF a analizar (texto seleccionable o escaneado). Tamaño máximo admitido: 15 MB.
+          description: 'Texto plano, HTML o XML ya procesado. No es un archivo. Máximo 300.000 caracteres.
 
             '
+          example: <html><body><h1>Factura F-2026-00456</h1></body></html>
         schema_id:
           type: string
           format: uuid
-          description: 'Identificador del schema (previamente creado) de tipo "PDF a JSON".
+          description: 'Identificador del schema (previamente creado) de tipo txt-json.
 
             '
-          example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
+          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
         space_id:
           type: string
           format: uuid
@@ -509,17 +708,78 @@ components:
 
             '
           example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
-    ErrorResponse:
+    AudioJsonSuccessResponse:
       type: object
       properties:
-        error:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
           type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
+          description: Nombre del schema aplicado.
+          example: Notas de llamada
+        total_registros:
+          type: integer
+          description: 'Siempre 1 en este endpoint: el audio completo se trata como una única fuente de datos.
+
+            '
+          example: 1
+        data:
+          type: array
+          description: 'Contiene exactamente un objeto con los datos extraídos del audio, según las propiedades definidas en el schema. Los datos no encontrados se devuelven como null. Si la verificación de fuente está activada en el schema, cada propiedad es { value, source } (fragmento hablado o momento).
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - cliente: Suministros Industriales del Ebro S.L.
+            numero_factura: F-2026-00456
+            fecha_emision: '2026-03-14'
+            importe_total: 1284.5
+        log_id:
+          $ref: '#/components/schemas/LogId'
+    LogId:
+      type:
+      - string
+      - 'null'
+      format: uuid
+      description: 'Identificador del registro en usage_logs de esta llamada. Presente en respuestas de éxito de extracción, modo agente, document-context y space-context, y en la mayoría de errores una vez autenticada la petición. Puede omitirse si el insert del log falla.
+
+        '
+      example: 7c2e1a90-4b3d-4f8a-9e21-6d5c8b0a1f34
+    DocJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
           type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
+          description: Nombre del schema aplicado.
+          example: Contratos de Alquiler
+        total_registros:
+          type: integer
+          description: 'Siempre 1 en este endpoint: el documento completo se trata como una única fuente de datos, no como una tabla de múltiples filas.
+
+            '
+          example: 1
+        data:
+          type: array
+          description: 'Contiene exactamente un objeto con los datos extraídos del documento, según las propiedades definidas en el schema. Los datos no encontrados en el texto se devuelven como null. Si la verificación de fuente está activada en el schema, cada propiedad es { value, source } (source cita página, párrafo y línea).
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - nombre_arrendatario: Laura Fernández Ruiz
+            nombre_arrendador: Inversiones Delta S.L.
+            direccion_inmueble: Calle Mayor 14, 3ºB, Madrid
+            renta_mensual: 950.0
+            fecha_inicio: '2026-04-01'
+        log_id:
+          $ref: '#/components/schemas/LogId'
     ExcelJsonSuccessResponse:
       type: object
       properties:
@@ -547,7 +807,9 @@ components:
             mail de contacto: email_contacto
         data:
           type: array
-          description: Registros transformados según el schema.
+          description: 'Registros transformados según el schema. Si la verificación de fuente está activada en el schema, cada propiedad es un objeto { value, source } (source cita columna y fila; si no hay evidencia, requires_human_revision). Si la verificación de fuente está desactivada, los valores siguen siendo planos.
+
+            '
           items:
             type: object
             additionalProperties: true
@@ -557,25 +819,27 @@ components:
             empresa: TechSolutions
             email_contacto: ana.gomez@techsolutions.com
             telefono_movil: +1 (555) 019-2231
-    TxtJsonRequest:
+        log_id:
+          $ref: '#/components/schemas/LogId'
+    PdfJsonRequest:
       type: object
       required:
-      - content
+      - file
       - schema_id
       properties:
-        content:
+        file:
           type: string
-          description: 'Texto plano, HTML o XML ya procesado. No es un archivo. Máximo 300.000 caracteres.
+          format: binary
+          description: 'Archivo PDF a analizar (texto seleccionable o escaneado). Tamaño máximo admitido: 15 MB.
 
             '
-          example: <html><body><h1>Factura F-2026-00456</h1></body></html>
         schema_id:
           type: string
           format: uuid
-          description: 'Identificador del schema (previamente creado) de tipo txt-json.
+          description: 'Identificador del schema (previamente creado) de tipo "PDF a JSON".
 
             '
-          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
+          example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
         space_id:
           type: string
           format: uuid
@@ -583,6 +847,47 @@ components:
 
             '
           example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    AgentImgJsonSuccessResponse:
+      allOf:
+      - $ref: '#/components/schemas/ImgJsonSuccessResponse'
+      - type: object
+        required:
+        - agent_data
+        properties:
+          agent_data:
+            $ref: '#/components/schemas/AgentData'
+    PdfJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Facturas de Proveedores
+        total_registros:
+          type: integer
+          description: 'Siempre 1 en este endpoint: el documento completo se trata como una única fuente de datos, no como una tabla de múltiples filas.
+
+            '
+          example: 1
+        data:
+          type: array
+          description: 'Contiene exactamente un objeto con los datos extraídos del PDF, según las propiedades definidas en el schema. Los datos no encontrados en el documento se devuelven como null. Si la verificación de fuente está activada en el schema, cada propiedad es { value, source } (source cita página, párrafo o línea).
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - numero_factura: F-2026-00456
+            fecha_emision: '2026-03-14'
+            proveedor: Suministros Industriales del Ebro S.L.
+            importe_total: 1284.5
+            moneda: EUR
+        log_id:
+          $ref: '#/components/schemas/LogId'
     ExcelJsonRequest:
       type: object
       required:
@@ -607,88 +912,19 @@ components:
 
             '
           example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
-    DocJsonSuccessResponse:
+    ErrorResponse:
       type: object
       properties:
-        success:
-          type: boolean
-          example: true
-        schema_utilizado:
+        error:
           type: string
-          description: Nombre del schema aplicado.
-          example: Contratos de Alquiler
-        total_registros:
-          type: integer
-          description: 'Siempre 1 en este endpoint: el documento completo se trata como una única fuente de datos, no como una tabla de múltiples filas.
-
-            '
-          example: 1
-        data:
-          type: array
-          description: 'Contiene exactamente un objeto con los datos extraídos del documento, según las propiedades definidas en el schema. Los datos no encontrados en el texto se devuelven como null.
-
-            '
-          items:
-            type: object
-            additionalProperties: true
-          example:
-          - nombre_arrendatario: Laura Fernández Ruiz
-            nombre_arrendador: Inversiones Delta S.L.
-            direccion_inmueble: Calle Mayor 14, 3ºB, Madrid
-            renta_mensual: 950.0
-            fecha_inicio: '2026-04-01'
-    ImgJsonRequest:
-      type: object
-      required:
-      - file
-      - schema_id
-      properties:
-        file:
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
           type: string
-          format: binary
-          description: 'Imagen a analizar. Formatos admitidos: .jpeg, .jpg, .png, .webp, .heic y .heif. Tamaño máximo admitido: 15 MB.
-
-            '
-        schema_id:
-          type: string
-          format: uuid
-          description: 'Identificador del schema (previamente creado) de tipo "Imagen a JSON".
-
-            '
-          example: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f
-        space_id:
-          type: string
-          format: uuid
-          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
-
-            '
-          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
-    DocJsonRequest:
-      type: object
-      required:
-      - file
-      - schema_id
-      properties:
-        file:
-          type: string
-          format: binary
-          description: 'Archivo de documento a analizar. Formatos admitidos: .docx (application/vnd.openxmlformats-officedocument.wordprocessingml.document), .txt (text/plain), .md (text/markdown) y .rtf (application/rtf). El formato legacy .doc (application/msword) NO está soportado. Tamaño máximo admitido: 10 MB.
-
-            '
-        schema_id:
-          type: string
-          format: uuid
-          description: 'Identificador del schema (previamente creado) de tipo "Documento a JSON".
-
-            '
-          example: b980cfe7-61ef-4a5a-9724-881c8a5541e2
-        space_id:
-          type: string
-          format: uuid
-          description: 'Opcional. Espacio de conocimiento al que se asocia el documento guardado. Debe pertenecer al mismo usuario dueño de la API key. Solo tiene efecto cuando el schema tiene la ventana de contexto activada, que es cuando el documento se guarda.
-
-            '
-          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+        log_id:
+          $ref: '#/components/schemas/LogId'
   securitySchemes:
     ApiKeyAuth:
       type: apiKey

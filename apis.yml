@@ -369,6 +369,29 @@ apis:
     url: plans/claix-dev-plans-pricing.yml
   - type: SDK
     url: https://github.com/Gaelproodoos/claix-python
+- aid: claix-dev:claix-dev-audio-a-json-api
+  name: Claix Audio a JSON API
+  description: Extracción de datos estructurados a partir de audio hablado (.mp3, .wav, .m4a, .ogg)
+  humanURL: https://www.claix.dev/documentation/mcp
+  baseURL: https://www.claix.dev/mcp
+  tags:
+  - Audio a JSON
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-audio-a-json-api-openapi.yml
+- aid: claix-dev:claix-dev-markdown-api
+  name: Claix Markdown API
+  description: >-
+    Conversión de archivos a Markdown, sin schema. Mismos formatos que los endpoints de extracción a JSON.
+    space_id es opcional. PDF digital, Excel, documentos de texto y txt/HTML/XML se convierten en local.
+    PDF escaneado, imagen y audio usan el mismo modelo y el mismo BYOK que su endpoint JSON.
+  humanURL: https://www.claix.dev/documentation/mcp
+  baseURL: https://www.claix.dev/mcp
+  tags:
+  - Markdown
+  properties:
+  - type: OpenAPI
+    url: openapi/claix-dev-markdown-api-openapi.yml
 maintainers:
 - FN: Kin Lane
   email: kin@apievangelist.com

@@ -1,8 +1,84 @@
 openapi: 3.2.0
 info:
   title: Claix Texto a JSON API
-  description: Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make).
-  version: 1.8.2
+  description: 'Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes, audio) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make). Source Tracing opcional: citas por campo `{ value, source }` o `requires_human_revision` si falta evidencia. Expone seis endpoints principales de conversión:
+
+    - **Excel/CSV → JSON**: recibe un archivo Excel o CSV y lo transforma en
+
+    JSON según la estructura definida en un "schema" previamente creado. - **JSON → Excel**: recibe uno o varios documentos JSON y devuelve un
+
+    archivo Excel (.xlsx) binario, según la estructura definida en un
+
+    "schema" previamente creado. - **PDF → JSON**: recibe un archivo PDF (de texto o escaneado) y devuelve
+
+    un objeto JSON con los datos extraídos del documento, según la
+
+    estructura definida en un "schema" previamente creado. - **Documento → JSON**: recibe un archivo de documento (.docx, .txt, .md
+
+    o .rtf) y devuelve un objeto JSON con los datos extraídos, según la
+
+    estructura definida en un "schema" previamente creado. - **Imagen → JSON**: recibe una imagen (.jpeg, .jpg, .png, .webp, .heic
+
+    o .heif) y devuelve un objeto JSON con los datos extraídos del
+
+    contenido visible, según la estructura definida en un "schema"
+
+    previamente creado. - **Txt / HTML / XML → JSON**: recibe el campo `content` (texto plano,
+
+    HTML o XML ya procesado, sin archivo) y devuelve un objeto JSON con los
+
+    datos extraídos, según un schema de tipo txt-json. Máximo 300.000
+
+    caracteres. Tarifa fija €0,10 por llamada exitosa tras el free tier. - **Excel/CSV → Markdown**, **PDF → Markdown**, **Documento → Markdown**,
+
+    **Imagen → Markdown**, **Txt/HTML/XML → Markdown** y **Audio → Markdown**:
+
+    misma autenticación, mismos formatos y mismos límites que el endpoint JSON
+
+    equivalente. No piden schema_id. save=true inserta el Markdown en la base
+
+    conectada y la respuesta incluye row_id. PDF con texto, Excel, documentos y
+
+    texto se convierten en local. PDF escaneado, imagen y audio llaman al
+
+    mismo modelo con BYOK. - **Audio → JSON**: recibe un archivo de audio (.mp3, .wav, .m4a o .ogg)
+
+    y un schema_id, y devuelve un único objeto JSON con los datos extraídos
+
+    de lo hablado. Tamaño máximo 12 MB y duración máxima 10 minutos. Si el
+
+    audio no es inteligible, responde 422. Además, expone endpoints para consultar y gestionar los schemas de la cuenta:
+
+    - **Listar schemas**: dado un API key, devuelve todos los schemas de esa
+
+    cuenta con su información completa (id, nombre, tipo y definición). - **Obtener schema**: dado un `schema_id` en la URL, devuelve ese schema
+
+    con su definición completa. - **Crear schema**: crea un schema con `name`, `type`, `schema_definition`
+
+    y, opcionalmente, Modo Agente (`is_agent_mode`, `agent_definition`,
+
+    `resumen_agent`) y verificación de fuente. - **Actualizar schema**: sustituye la configuración completa de un schema
+
+    existente (`schema_id` en la URL; mismo body que crear). - **Borrar schema**: elimina un schema de la cuenta por `schema_id`. **Ventana de Contexto** — Tras una extracción con `window_context` activo, el `document_id` devuelto permite consultar el contenido bruto, preguntar al markdown persistido o eliminar el documento:
+
+    - **GET https://claix.dev/get-document/{document_id}**: devuelve el
+
+    contenido bruto y metadatos del documento (`content`, `file_name`,
+
+    `schema_id`, `processed_at`). Llamada gratuita. - **POST https://claix.dev/document-context/{document_id}**: body
+
+    `{ "questions": [{ "question": "...", "format": "string"|"int"|"boolean"|"timestamp"|"array" }] }`
+
+    (máximo 5 preguntas, 400 caracteres cada una). Respuesta
+
+    `{ user_ask, ia_response, log_id }`. Cada respuesta respeta el `format`
+
+    pedido (o `null`). Si la verificación de fuente está activada en consulta
+
+    a documentos, cada ítem de `ia_response` es `{ value, source }`. - **DELETE https://claix.dev/delete-document/{document_id}**: elimina el
+
+    documento persistido por `document_id`. Sin body ni query params. Respuesta `{ document_id }`.'
+  version: 1.12.0
 servers:
 - url: https://claix.dev/api
   description: Producción (dominio público Claix)
@@ -19,7 +95,7 @@ paths:
       tags:
       - Texto a JSON
       summary: Extrae datos estructurados de Txt / HTML / XML según un schema
-      description: 'Recibe el campo `content` (texto plano, HTML o XML ya procesado) y un schema_id de tipo txt-json, y devuelve un único objeto JSON con los datos extraídos. No se sube ningún archivo. Máximo 300.000 caracteres. URL pública: POST https://claix.dev/api/txt-json. Tarifa fija €0,10 por llamada exitosa (HTTP 200) tras las 15 primeras gratis.'
+      description: 'Recibe el campo `content` (texto plano, HTML o XML ya procesado) y un schema_id de tipo txt-json, y devuelve un único objeto JSON con los datos extraídos. No se sube ningún archivo. Máximo 300.000 caracteres. URL pública: POST https://claix.dev/api/txt-json. Tarifa fija €0,10 por llamada exitosa (HTTP 200) tras las 15 primeras gratis. La respuesta incluye `log_id`. Si la verificación de fuente está activada en el schema, cada propiedad extraída es `{ value, source }`.'
       requestBody:
         required: true
         content:
@@ -83,47 +159,15 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
-          type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
-    DocJsonSuccessResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          example: true
-        schema_utilizado:
-          type: string
-          description: Nombre del schema aplicado.
-          example: Contratos de Alquiler
-        total_registros:
-          type: integer
-          description: 'Siempre 1 en este endpoint: el documento completo se trata como una única fuente de datos, no como una tabla de múltiples filas.
+    LogId:
+      type:
+      - string
+      - 'null'
+      format: uuid
+      description: 'Identificador del registro en usage_logs de esta llamada. Presente en respuestas de éxito de extracción, modo agente, document-context y space-context, y en la mayoría de errores una vez autenticada la petición. Puede omitirse si el insert del log falla.
 
-            '
-          example: 1
-        data:
-          type: array
-          description: 'Contiene exactamente un objeto con los datos extraídos del documento, según las propiedades definidas en el schema. Los datos no encontrados en el texto se devuelven como null.
-
-            '
-          items:
-            type: object
-            additionalProperties: true
-          example:
-          - nombre_arrendatario: Laura Fernández Ruiz
-            nombre_arrendador: Inversiones Delta S.L.
-            direccion_inmueble: Calle Mayor 14, 3ºB, Madrid
-            renta_mensual: 950.0
-            fecha_inicio: '2026-04-01'
+        '
+      example: 7c2e1a90-4b3d-4f8a-9e21-6d5c8b0a1f34
     TxtJsonRequest:
       type: object
       required:
@@ -150,6 +194,51 @@ components:
 
             '
           example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+        log_id:
+          $ref: '#/components/schemas/LogId'
+    DocJsonSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        schema_utilizado:
+          type: string
+          description: Nombre del schema aplicado.
+          example: Contratos de Alquiler
+        total_registros:
+          type: integer
+          description: 'Siempre 1 en este endpoint: el documento completo se trata como una única fuente de datos, no como una tabla de múltiples filas.
+
+            '
+          example: 1
+        data:
+          type: array
+          description: 'Contiene exactamente un objeto con los datos extraídos del documento, según las propiedades definidas en el schema. Los datos no encontrados en el texto se devuelven como null. Si la verificación de fuente está activada en el schema, cada propiedad es { value, source } (source cita página, párrafo y línea).
+
+            '
+          items:
+            type: object
+            additionalProperties: true
+          example:
+          - nombre_arrendatario: Laura Fernández Ruiz
+            nombre_arrendador: Inversiones Delta S.L.
+            direccion_inmueble: Calle Mayor 14, 3ºB, Madrid
+            renta_mensual: 950.0
+            fecha_inicio: '2026-04-01'
+        log_id:
+          $ref: '#/components/schemas/LogId'
   securitySchemes:
     ApiKeyAuth:
       type: apiKey

@@ -1,8 +1,84 @@
 openapi: 3.2.0
 info:
   title: Claix Ventana de Contexto API
-  description: Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make).
-  version: 1.8.2
+  description: 'Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes, audio) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make). Source Tracing opcional: citas por campo `{ value, source }` o `requires_human_revision` si falta evidencia. Expone seis endpoints principales de conversión:
+
+    - **Excel/CSV → JSON**: recibe un archivo Excel o CSV y lo transforma en
+
+    JSON según la estructura definida en un "schema" previamente creado. - **JSON → Excel**: recibe uno o varios documentos JSON y devuelve un
+
+    archivo Excel (.xlsx) binario, según la estructura definida en un
+
+    "schema" previamente creado. - **PDF → JSON**: recibe un archivo PDF (de texto o escaneado) y devuelve
+
+    un objeto JSON con los datos extraídos del documento, según la
+
+    estructura definida en un "schema" previamente creado. - **Documento → JSON**: recibe un archivo de documento (.docx, .txt, .md
+
+    o .rtf) y devuelve un objeto JSON con los datos extraídos, según la
+
+    estructura definida en un "schema" previamente creado. - **Imagen → JSON**: recibe una imagen (.jpeg, .jpg, .png, .webp, .heic
+
+    o .heif) y devuelve un objeto JSON con los datos extraídos del
+
+    contenido visible, según la estructura definida en un "schema"
+
+    previamente creado. - **Txt / HTML / XML → JSON**: recibe el campo `content` (texto plano,
+
+    HTML o XML ya procesado, sin archivo) y devuelve un objeto JSON con los
+
+    datos extraídos, según un schema de tipo txt-json. Máximo 300.000
+
+    caracteres. Tarifa fija €0,10 por llamada exitosa tras el free tier. - **Excel/CSV → Markdown**, **PDF → Markdown**, **Documento → Markdown**,
+
+    **Imagen → Markdown**, **Txt/HTML/XML → Markdown** y **Audio → Markdown**:
+
+    misma autenticación, mismos formatos y mismos límites que el endpoint JSON
+
+    equivalente. No piden schema_id. save=true inserta el Markdown en la base
+
+    conectada y la respuesta incluye row_id. PDF con texto, Excel, documentos y
+
+    texto se convierten en local. PDF escaneado, imagen y audio llaman al
+
+    mismo modelo con BYOK. - **Audio → JSON**: recibe un archivo de audio (.mp3, .wav, .m4a o .ogg)
+
+    y un schema_id, y devuelve un único objeto JSON con los datos extraídos
+
+    de lo hablado. Tamaño máximo 12 MB y duración máxima 10 minutos. Si el
+
+    audio no es inteligible, responde 422. Además, expone endpoints para consultar y gestionar los schemas de la cuenta:
+
+    - **Listar schemas**: dado un API key, devuelve todos los schemas de esa
+
+    cuenta con su información completa (id, nombre, tipo y definición). - **Obtener schema**: dado un `schema_id` en la URL, devuelve ese schema
+
+    con su definición completa. - **Crear schema**: crea un schema con `name`, `type`, `schema_definition`
+
+    y, opcionalmente, Modo Agente (`is_agent_mode`, `agent_definition`,
+
+    `resumen_agent`) y verificación de fuente. - **Actualizar schema**: sustituye la configuración completa de un schema
+
+    existente (`schema_id` en la URL; mismo body que crear). - **Borrar schema**: elimina un schema de la cuenta por `schema_id`. **Ventana de Contexto** — Tras una extracción con `window_context` activo, el `document_id` devuelto permite consultar el contenido bruto, preguntar al markdown persistido o eliminar el documento:
+
+    - **GET https://claix.dev/get-document/{document_id}**: devuelve el
+
+    contenido bruto y metadatos del documento (`content`, `file_name`,
+
+    `schema_id`, `processed_at`). Llamada gratuita. - **POST https://claix.dev/document-context/{document_id}**: body
+
+    `{ "questions": [{ "question": "...", "format": "string"|"int"|"boolean"|"timestamp"|"array" }] }`
+
+    (máximo 5 preguntas, 400 caracteres cada una). Respuesta
+
+    `{ user_ask, ia_response, log_id }`. Cada respuesta respeta el `format`
+
+    pedido (o `null`). Si la verificación de fuente está activada en consulta
+
+    a documentos, cada ítem de `ia_response` es `{ value, source }`. - **DELETE https://claix.dev/delete-document/{document_id}**: elimina el
+
+    documento persistido por `document_id`. Sin body ni query params. Respuesta `{ document_id }`.'
+  version: 1.12.0
 servers:
 - url: https://claix.dev/api
   description: Producción (dominio público Claix)
@@ -11,8 +87,78 @@ security:
 - BearerAuth: []
 tags:
 - name: Ventana de Contexto
-  description: 'Consulta de contenido bruto, preguntas o borrado de un documento persistido (markdown_content) identificado por document_id. URLs públicas: GET https://claix.dev/get-document/{document_id}; POST https://claix.dev/document-context/{document_id}; DELETE https://claix.dev/delete-document/{document_id}.'
+  description: 'Consulta de contenido bruto, preguntas, borrado o sustitución de contenido de un documento persistido (markdown_content) identificado por document_id. URLs públicas: GET https://claix.dev/get-document/{document_id}; POST https://claix.dev/document-context/{document_id}; DELETE https://claix.dev/delete-document/{document_id}; POST https://claix.dev/replace-document.'
 paths:
+  /multi-document:
+    servers:
+    - url: https://claix.dev
+      description: Producción (dominio público Claix)
+    post:
+      operationId: multiDocumentAsk
+      tags:
+      - Ventana de Contexto
+      summary: Responde preguntas cruzando hasta 10 documentos enviados en la misma llamada
+      description: 'Equivale a POST https://claix.dev/multi-document. Multipart con hasta 10 archivos (los mismos formatos que Extracción → Markdown: pdf, xlsx, csv, docx, txt, md, rtf, html, xml, jpeg, jpg, png, webp, heic, heif, mp3, wav, m4a, ogg) y un campo `questions` con el mismo JSON que space-context: array de `{ question, format }` (máximo 5 preguntas, 400 caracteres; format ∈ string | int | boolean | timestamp | array). Cada archivo se convierte a Markdown y las preguntas se responden cruzando esos textos. No usa schema_id. `window_context`, `window_time` y `space_id` son opcionales en este endpoint: si window_context es true el documento se conserva durante window_time y, si llega space_id, se asocia a ese espacio. infinity exige el modo persistente activo en la cuenta. La conversión a Markdown no usa estos campos; usa save. La respuesta es `{ user_ask, ia_response, documents_processed, log_id }`. Si la verificación de fuente está activada en consulta a espacio de conocimiento, cada ítem de `ia_response` es `{ value, source }`.'
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/multi-document
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/MultiDocumentRequest'
+      responses:
+        '200':
+          description: Preguntas respondidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultiDocumentSuccessResponse'
+        '400':
+          description: 'Falta questions o el archivo, hay más de 10 documentos, formato no soportado, window_time inválido, space_id sin window_context, o infinity sin modo persistente
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: API key inválida o cuenta no activa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: space_id inexistente para esta cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '413':
+          description: Algún archivo supera el límite de su formato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Algún archivo no produjo Markdown legible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Fallo del servicio de IA
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /get-document/{document_id}:
     servers:
     - url: https://claix.dev
@@ -80,7 +226,7 @@ paths:
       tags:
       - Ventana de Contexto
       summary: Responde preguntas sobre un documento persistido
-      description: Equivale a POST https://claix.dev/document-context/{document_id}. Recibe un document_id en la URL (el que devolvió una extracción con window_context activo) y un array `questions` en JSON. Carga markdown_content de la tabla documents, llama a Gemini 3.6 con el mismo modelo y generationConfig que el resto de funciones, y devuelve `{ user_ask, ia_response }`. Máximo 5 preguntas y 400 caracteres por pregunta. El documento debe pertenecer a la cuenta de la API key y no haber expirado.
+      description: Equivale a POST https://claix.dev/document-context/{document_id}. Recibe un document_id en la URL (el que devolvió una extracción con window_context activo) y un array `questions` de objetos `{ question, format }` en JSON. Carga markdown_content de la tabla documents, llama a Gemini 3.6 con el mismo modelo y generationConfig que el resto de funciones, y devuelve `{ user_ask, ia_response, log_id }` con respuestas tipadas según el `format` de cada pregunta (`string` | `int` | `boolean` | `timestamp` | `array`, o `null`). Si la verificación de fuente está activada en consulta a documentos, cada ítem de `ia_response` es `{ value, source }` con la evidencia citada del markdown (texto plano). Máximo 5 preguntas y 400 caracteres por pregunta. El documento debe pertenecer a la cuenta de la API key y no haber expirado.
       externalDocs:
         description: Documentación humana
         url: https://claix.dev/documentation/window-context
@@ -199,34 +345,140 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-components:
-  schemas:
-    WindowContextSuccessResponse:
-      type: object
-      required:
-      - user_ask
-      - ia_response
-      properties:
-        user_ask:
-          type: array
-          items:
-            type: string
-          description: Preguntas enviadas, en el mismo orden.
-          example:
-          - ¿Cuál es la penalización exacta por cancelación anticipada?
-          - ¿Qué empresa figura como arrendataria y cuál es su CIF?
-        ia_response:
-          type: array
-          items:
-            type:
-            - string
-            - 'null'
-          description: 'Respuestas alineadas 1:1 con user_ask. null si el dato no está en el documento.
+  /replace-document:
+    servers:
+    - url: https://claix.dev
+      description: Producción (dominio público Claix)
+    post:
+      operationId: replaceDocument
+      tags:
+      - Ventana de Contexto
+      summary: Sustituye el contenido de un documento con el de otro
+      description: 'Equivale a POST https://claix.dev/replace-document. Reemplaza el contenido de `document_id` con el de `new_content_document_id` mediante un RPC. El documento fuente se elimina. Se incrementa la `version` del documento destino. Conserva el mismo `document_id` (y su espacio, si lo tiene) mientras se actualiza el contenido con una nueva extracción. Ambos documentos deben pertenecer a la cuenta de la API key. Esta llamada es gratuita: no se factura ni consume el cupo de extracciones.'
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/replace-document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceDocumentRequest'
+            example:
+              document_id: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+              new_content_document_id: a8c3f1e0-2d4b-4a9e-8c71-5f0e2b9d6a3c
+      responses:
+        '200':
+          description: Contenido sustituido; el documento fuente ha sido eliminado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReplaceDocumentSuccessResponse'
+        '400':
+          description: 'Payload inválido (UUIDs ausentes o mal formados) o la operación no es válida (por ejemplo, ids iguales)
 
             '
-          example:
-          - El 15 % del importe restante del contrato.
-          - Inversiones Delta S.L., CIF B12345678
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Alguno de los dos documentos no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ReplaceDocumentSuccessResponse:
+      type: object
+      required:
+      - success
+      - swap_id
+      - document_id
+      - source_document_id
+      - file_name
+      - version
+      - swaps_count
+      - message
+      properties:
+        success:
+          type: boolean
+          description: Siempre true en una respuesta 200.
+          example: true
+        swap_id:
+          type: string
+          format: uuid
+          description: Identificador de la operación de swap.
+          example: c1e7a4b2-9f0d-4e8a-b3c5-1d2e3f4a5b6c
+        document_id:
+          type: string
+          format: uuid
+          description: Documento destino (id estable).
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+        source_document_id:
+          type: string
+          format: uuid
+          description: Documento fuente que se eliminó tras el swap.
+          example: a8c3f1e0-2d4b-4a9e-8c71-5f0e2b9d6a3c
+        file_name:
+          type: string
+          description: Nombre de archivo del documento destino.
+          example: factura.pdf
+        version:
+          type: number
+          description: Versión incrementada tras el swap.
+          example: 2
+        swaps_count:
+          type: number
+          description: Número acumulado de sustituciones del documento destino.
+          example: 1
+        message:
+          type: string
+          description: Mensaje legible de confirmación.
+          example: Contenido sustituido. El documento fuente ha sido eliminado.
+    TypedContextQuestion:
+      type: object
+      required:
+      - question
+      - format
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 400
+          description: Texto de la pregunta a responder.
+          example: ¿Cuál es la penalización exacta por cancelación anticipada?
+        format:
+          type: string
+          enum:
+          - string
+          - int
+          - boolean
+          - timestamp
+          - array
+          description: 'Tipo JSON esperado para la respuesta correspondiente. Si el dato existe pero no se puede tipar con seguridad, la API devuelve null.
+
+            '
+          example: string
     DeleteDocumentSuccessResponse:
       type: object
       required:
@@ -239,17 +491,41 @@ components:
 
             '
           example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
-    ErrorResponse:
+    LogId:
+      type:
+      - string
+      - 'null'
+      format: uuid
+      description: 'Identificador del registro en usage_logs de esta llamada. Presente en respuestas de éxito de extracción, modo agente, document-context y space-context, y en la mayoría de errores una vez autenticada la petición. Puede omitirse si el insert del log falla.
+
+        '
+      example: 7c2e1a90-4b3d-4f8a-9e21-6d5c8b0a1f34
+    SourcedField:
       type: object
+      required:
+      - value
+      - source
       properties:
-        error:
+        value:
+          description: 'Dato extraído o respuesta. null si no se encontró o no es determinable.
+
+            '
+        source:
           type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
-          type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
+          description: 'Evidencia de dónde se encontró el valor. Si no hay evidencia, el valor exacto es requires_human_revision.
+
+            '
+          example: página 2, párrafo 3
+    ContextAnswerValue:
+      description: 'Valor tipado según el format de la pregunta: string, int (entero), boolean, timestamp (string ISO preferible), array, o null si no está o no se puede tipar.
+
+        '
+      oneOf:
+      - type: string
+      - type: integer
+      - type: boolean
+      - type: array
+        items: {}
     GetDocumentSuccessResponse:
       type: object
       required:
@@ -288,6 +564,132 @@ components:
           description: 'Contenido bruto del documento (texto o markdown persistido tras la extracción).
 
             '
+    ReplaceDocumentRequest:
+      type: object
+      required:
+      - document_id
+      - new_content_document_id
+      properties:
+        document_id:
+          type: string
+          format: uuid
+          description: 'Documento destino cuyo contenido se sustituye. Conserva su id (y su espacio, si lo tiene).
+
+            '
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+        new_content_document_id:
+          type: string
+          format: uuid
+          description: 'Documento fuente cuyo contenido se copia. Se elimina tras el swap.
+
+            '
+          example: a8c3f1e0-2d4b-4a9e-8c71-5f0e2b9d6a3c
+    MultiDocumentSuccessResponse:
+      type: object
+      required:
+      - user_ask
+      - ia_response
+      - documents_processed
+      properties:
+        user_ask:
+          type: array
+          items:
+            $ref: '#/components/schemas/TypedContextQuestion'
+          description: Preguntas enviadas, en el mismo orden.
+        ia_response:
+          type: array
+          description: 'Respuestas alineadas 1:1 con user_ask, tipadas según format o null. Si la verificación de fuente está activada en consulta a espacio de conocimiento, cada ítem es { value, source }.
+
+            '
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/ContextAnswerValue'
+            - $ref: '#/components/schemas/SourcedField'
+        documents_processed:
+          type: integer
+          description: Número de documentos convertidos y usados para responder.
+          example: 3
+        log_id:
+          $ref: '#/components/schemas/LogId'
+    MultiDocumentRequest:
+      type: object
+      required:
+      - file
+      - questions
+      properties:
+        file:
+          type: string
+          format: binary
+          description: 'Documento a convertir. Se puede repetir el campo hasta 10 veces. También se aceptan los nombres files y documents. Formatos: pdf, xlsx, csv, docx, txt, md, rtf, html, xml, jpeg, jpg, png, webp, heic, heif, mp3, wav, m4a y ogg.
+
+            '
+        questions:
+          type: string
+          description: 'JSON con un array de { question, format }. Mismos límites que space-context: máximo 5 preguntas, 400 caracteres por question, format ∈ string | int | boolean | timestamp | array.
+
+            '
+          example: '[{"question":"¿Qué proveedor factura más en total?","format":"string"}]
+
+            '
+        window_context:
+          type: boolean
+          description: 'Si es true, cada documento convertido se conserva. Si no viene, solo se usan para responder y no se conserva ninguno.
+
+            '
+        window_time:
+          type: string
+          description: 'Obligatorio si window_context es true. Misma lista de minutos que al convertir a Markdown, o "infinity" (exige modo persistente).
+
+            '
+        space_id:
+          type: string
+          format: uuid
+          description: 'Opcional, y solo si window_context es true. Espacio de conocimiento al que se asocian los documentos conservados.
+
+            '
+    WindowContextSuccessResponse:
+      type: object
+      required:
+      - user_ask
+      - ia_response
+      properties:
+        user_ask:
+          type: array
+          items:
+            $ref: '#/components/schemas/TypedContextQuestion'
+          description: Preguntas enviadas (con su format), en el mismo orden.
+          example:
+          - question: ¿Cuál es la penalización exacta por cancelación anticipada?
+            format: string
+          - question: ¿Qué empresa figura como arrendataria y cuál es su CIF?
+            format: string
+        ia_response:
+          type: array
+          description: 'Respuestas alineadas 1:1 con user_ask, tipadas según format (string, int, boolean, timestamp, array) o null. Si la verificación de fuente está activada en consulta a documentos, cada ítem es { value, source }: source cita el fragmento del markdown (texto plano); si no hay evidencia, requires_human_revision.
+
+            '
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/ContextAnswerValue'
+            - $ref: '#/components/schemas/SourcedField'
+          example:
+          - El 15 % del importe restante del contrato.
+          - Inversiones Delta S.L., CIF B12345678
+        log_id:
+          $ref: '#/components/schemas/LogId'
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+        log_id:
+          $ref: '#/components/schemas/LogId'
     WindowContextRequest:
       type: object
       required:
@@ -298,15 +700,15 @@ components:
           minItems: 1
           maxItems: 5
           items:
-            type: string
-            minLength: 1
-            maxLength: 400
-          description: 'Preguntas a responder usando solo el markdown persistido. Máximo 5 por turno, 400 caracteres cada una.
+            $ref: '#/components/schemas/TypedContextQuestion'
+          description: 'Preguntas tipadas a responder usando solo el markdown persistido. Máximo 5 por turno, 400 caracteres por question. Cada ítem exige question y format (string | int | boolean | timestamp | array).
 
             '
           example:
-          - ¿Cuál es la penalización exacta por cancelación anticipada?
-          - ¿Qué empresa figura como arrendataria y cuál es su CIF?
+          - question: ¿Cuál es la penalización exacta por cancelación anticipada?
+            format: string
+          - question: ¿Qué empresa figura como arrendataria y cuál es su CIF?
+            format: string
   securitySchemes:
     ApiKeyAuth:
       type: apiKey

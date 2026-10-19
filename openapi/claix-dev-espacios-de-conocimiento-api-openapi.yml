@@ -1,8 +1,84 @@
 openapi: 3.2.0
 info:
   title: Claix Espacios de Conocimiento API
-  description: Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make).
-  version: 1.8.2
+  description: 'Claix es una API de conversión de datos tabulares, JSON y documentos (PDF, Word, texto plano, imágenes, audio) pensada para integraciones server-to-server (backends, scripts, herramientas de automatización como n8n, Zapier o Make). Source Tracing opcional: citas por campo `{ value, source }` o `requires_human_revision` si falta evidencia. Expone seis endpoints principales de conversión:
+
+    - **Excel/CSV → JSON**: recibe un archivo Excel o CSV y lo transforma en
+
+    JSON según la estructura definida en un "schema" previamente creado. - **JSON → Excel**: recibe uno o varios documentos JSON y devuelve un
+
+    archivo Excel (.xlsx) binario, según la estructura definida en un
+
+    "schema" previamente creado. - **PDF → JSON**: recibe un archivo PDF (de texto o escaneado) y devuelve
+
+    un objeto JSON con los datos extraídos del documento, según la
+
+    estructura definida en un "schema" previamente creado. - **Documento → JSON**: recibe un archivo de documento (.docx, .txt, .md
+
+    o .rtf) y devuelve un objeto JSON con los datos extraídos, según la
+
+    estructura definida en un "schema" previamente creado. - **Imagen → JSON**: recibe una imagen (.jpeg, .jpg, .png, .webp, .heic
+
+    o .heif) y devuelve un objeto JSON con los datos extraídos del
+
+    contenido visible, según la estructura definida en un "schema"
+
+    previamente creado. - **Txt / HTML / XML → JSON**: recibe el campo `content` (texto plano,
+
+    HTML o XML ya procesado, sin archivo) y devuelve un objeto JSON con los
+
+    datos extraídos, según un schema de tipo txt-json. Máximo 300.000
+
+    caracteres. Tarifa fija €0,10 por llamada exitosa tras el free tier. - **Excel/CSV → Markdown**, **PDF → Markdown**, **Documento → Markdown**,
+
+    **Imagen → Markdown**, **Txt/HTML/XML → Markdown** y **Audio → Markdown**:
+
+    misma autenticación, mismos formatos y mismos límites que el endpoint JSON
+
+    equivalente. No piden schema_id. save=true inserta el Markdown en la base
+
+    conectada y la respuesta incluye row_id. PDF con texto, Excel, documentos y
+
+    texto se convierten en local. PDF escaneado, imagen y audio llaman al
+
+    mismo modelo con BYOK. - **Audio → JSON**: recibe un archivo de audio (.mp3, .wav, .m4a o .ogg)
+
+    y un schema_id, y devuelve un único objeto JSON con los datos extraídos
+
+    de lo hablado. Tamaño máximo 12 MB y duración máxima 10 minutos. Si el
+
+    audio no es inteligible, responde 422. Además, expone endpoints para consultar y gestionar los schemas de la cuenta:
+
+    - **Listar schemas**: dado un API key, devuelve todos los schemas de esa
+
+    cuenta con su información completa (id, nombre, tipo y definición). - **Obtener schema**: dado un `schema_id` en la URL, devuelve ese schema
+
+    con su definición completa. - **Crear schema**: crea un schema con `name`, `type`, `schema_definition`
+
+    y, opcionalmente, Modo Agente (`is_agent_mode`, `agent_definition`,
+
+    `resumen_agent`) y verificación de fuente. - **Actualizar schema**: sustituye la configuración completa de un schema
+
+    existente (`schema_id` en la URL; mismo body que crear). - **Borrar schema**: elimina un schema de la cuenta por `schema_id`. **Ventana de Contexto** — Tras una extracción con `window_context` activo, el `document_id` devuelto permite consultar el contenido bruto, preguntar al markdown persistido o eliminar el documento:
+
+    - **GET https://claix.dev/get-document/{document_id}**: devuelve el
+
+    contenido bruto y metadatos del documento (`content`, `file_name`,
+
+    `schema_id`, `processed_at`). Llamada gratuita. - **POST https://claix.dev/document-context/{document_id}**: body
+
+    `{ "questions": [{ "question": "...", "format": "string"|"int"|"boolean"|"timestamp"|"array" }] }`
+
+    (máximo 5 preguntas, 400 caracteres cada una). Respuesta
+
+    `{ user_ask, ia_response, log_id }`. Cada respuesta respeta el `format`
+
+    pedido (o `null`). Si la verificación de fuente está activada en consulta
+
+    a documentos, cada ítem de `ia_response` es `{ value, source }`. - **DELETE https://claix.dev/delete-document/{document_id}**: elimina el
+
+    documento persistido por `document_id`. Sin body ni query params. Respuesta `{ document_id }`.'
+  version: 1.12.0
 servers:
 - url: https://claix.dev/api
   description: Producción (dominio público Claix)
@@ -11,7 +87,7 @@ security:
 - BearerAuth: []
 tags:
 - name: Espacios de Conocimiento
-  description: 'Creación y borrado de espacios de conocimiento, y preguntas cruzadas sobre todos los documentos vigentes agrupados en uno de ellos. El formato de entrada y salida de las preguntas es el mismo que en la ventana de contexto. URLs públicas: POST https://claix.dev/create-space; DELETE https://claix.dev/delete-space/{space_id}; POST https://claix.dev/space-context/{space_id}.'
+  description: 'Creación y borrado de espacios de conocimiento, asignación o desacoplado de documentos a un espacio, y preguntas cruzadas sobre todos los documentos vigentes agrupados en uno de ellos. El formato de entrada y salida de las preguntas es el mismo que en la ventana de contexto. URLs públicas: POST https://claix.dev/create-space; DELETE https://claix.dev/delete-space/{space_id}; POST https://claix.dev/add-space; DELETE https://claix.dev/remove-document-from-space/{document_id}; POST https://claix.dev/space-context/{space_id}.'
 paths:
   /space-context/{space_id}:
     servers:
@@ -22,7 +98,7 @@ paths:
       tags:
       - Espacios de Conocimiento
       summary: Responde preguntas cruzando todos los documentos de un espacio
-      description: 'Equivale a POST https://claix.dev/space-context/{space_id}. Mismo formato de entrada y de salida que POST /document-context/{document_id}: body con un array `questions` (máximo 5 preguntas, 400 caracteres cada una) y respuesta `{ user_ask, ia_response }` alineada 1:1. La única diferencia es el alcance: en vez de un único documento, carga el markdown_content de todos los documentos vigentes cuyo `espacio_id` sea ese space_id, y responde cruzando la información entre ellos (comparar, sumar, relacionar o consolidar datos repartidos en varios archivos). El espacio debe pertenecer a la cuenta de la API key. Los documentos expirados se ignoran. Para acotar coste y mantener la precisión del modelo se cargan como máximo 50 documentos y 200.000 caracteres en total, repartidos entre ellos.'
+      description: 'Equivale a POST https://claix.dev/space-context/{space_id}. Mismo formato de entrada y de salida que POST /document-context/{document_id}: body con un array `questions` de objetos `{ question, format }` (máximo 5 preguntas, 400 caracteres cada una; `format` ∈ `string` | `int` | `boolean` | `timestamp` | `array`) y respuesta `{ user_ask, ia_response, log_id }` tipada y alineada 1:1. Si la verificación de fuente está activada en consulta a espacio de conocimiento, cada ítem de `ia_response` es `{ value, source }` nombrando `document_id` y `file_name`. La única diferencia de alcance es que, en vez de un único documento, carga el markdown_content de todos los documentos vigentes cuyo `espacio_id` sea ese space_id, y responde cruzando la información entre ellos (comparar, sumar, relacionar o consolidar datos repartidos en varios archivos). El espacio debe pertenecer a la cuenta de la API key. Los documentos expirados se ignoran. Para acotar coste y mantener la precisión del modelo se cargan como máximo 50 documentos y 200.000 caracteres en total, repartidos entre ellos.'
       externalDocs:
         description: Documentación humana
         url: https://claix.dev/documentation/window-context
@@ -96,7 +172,7 @@ paths:
       tags:
       - Espacios de Conocimiento
       summary: Crea un espacio de conocimiento en la cuenta del API key
-      description: 'Equivale a POST https://claix.dev/create-space. Crea un espacio de conocimiento vacío en la cuenta de la API key. El único campo obligatorio es `name`. Devuelve el `space_id` que luego se envía como `space_id` opcional en los endpoints de extracción para agrupar documentos, y que identifica el espacio en POST /space-context/{space_id}. Esta llamada es gratuita: no se factura ni consume el cupo de extracciones.'
+      description: 'Equivale a POST https://claix.dev/create-space. Crea un espacio de conocimiento vacío en la cuenta de la API key. El único campo obligatorio es `name`. Devuelve el `space_id` que luego se envía como `space_id` opcional en los endpoints de extracción para agrupar documentos, y que identifica el espacio en POST /space-context/{space_id}. Cada espacio admite como máximo 10 documentos. Esta llamada es gratuita: no se factura ni consume el cupo de extracciones.'
       externalDocs:
         description: Documentación humana
         url: https://claix.dev/documentation/window-context/create-space
@@ -199,6 +275,129 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /add-space:
+    servers:
+    - url: https://claix.dev
+      description: Producción (dominio público Claix)
+    post:
+      operationId: addSpace
+      tags:
+      - Espacios de Conocimiento
+      summary: Asigna un documento sin espacio a un espacio de conocimiento
+      description: 'Equivale a POST https://claix.dev/add-space. Vincula un documento persistido que aún no tiene `space_id` a un espacio de conocimiento existente de la misma cuenta. Si el documento ya pertenece a un espacio, responde 400. Cada space_id admite como máximo 10 documentos; si el espacio está lleno, responde 400. Útil cuando se extrajo sin `space_id` y después se quiere agrupar para consultas con POST /space-context/{space_id}. Esta llamada es gratuita: no se factura ni consume el cupo de extracciones.'
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/add-space
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddSpaceRequest'
+            example:
+              document_id: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+              space_id: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+      responses:
+        '200':
+          description: Documento asignado al espacio correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddSpaceSuccessResponse'
+        '400':
+          description: 'Payload inválido (UUIDs ausentes o mal formados), el documento ya tiene un space_id asignado, o el espacio ya tiene 10 documentos
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado (API key inválida, inactiva o cuenta suspendida)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El documento o el espacio no existen o no pertenecen a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (solo se admite POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /remove-document-from-space/{document_id}:
+    servers:
+    - url: https://claix.dev
+      description: Producción (dominio público Claix)
+    delete:
+      operationId: removeDocumentFromSpace
+      tags:
+      - Espacios de Conocimiento
+      summary: Desacopla un documento de su espacio de conocimiento
+      description: 'Equivale a DELETE https://claix.dev/remove-document-from-space/{document_id}. Pone `espacio_id` a null en el documento indicado: el documento sigue existiendo, solo deja de pertenecer al espacio. Sin body ni query params. Si el documento ya no tenía espacio asignado, responde 400. La edge function también acepta POST con la misma URL y el mismo comportamiento. Tras el desacoplado se puede volver a asignar con POST /add-space. Llamada gratuita.'
+      externalDocs:
+        description: Documentación humana
+        url: https://claix.dev/documentation/window-context/remove-document-from-space
+      parameters:
+      - name: document_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: 'UUID del documento que tiene un space_id asignado y se quiere desacoplar.
+
+          '
+      responses:
+        '200':
+          description: Documento desacoplado del espacio correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RemoveDocumentFromSpaceSuccessResponse'
+        '400':
+          description: 'document_id ausente o con formato UUID inválido, o el documento ya no tiene espacio asignado
+
+            '
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: El documento no existe o no pertenece a la cuenta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '405':
+          description: Método HTTP no permitido (se admiten DELETE y POST)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Error interno del servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     CreateSpaceRequest:
@@ -214,48 +413,74 @@ components:
 
             '
           example: Proveedores 2026
-    SpaceContextRequest:
+    RemoveDocumentFromSpaceSuccessResponse:
       type: object
       required:
-      - questions
+      - success
+      - document_id
+      - previous_space_id
+      - espacio_id
+      - file_name
+      - version
+      - message
       properties:
-        questions:
-          type: array
-          minItems: 1
-          maxItems: 5
-          items:
-            type: string
-            minLength: 1
-            maxLength: 400
-          description: 'Preguntas a responder usando solo el markdown persistido de los documentos del espacio. Mismo formato y mismos límites que document-context: máximo 5 por turno, 400 caracteres cada una.
-
-            '
-          example:
-          - ¿Qué proveedor factura más en total sumando todas las facturas?
-          - ¿Hay algún contrato cuyo importe no coincida con su factura?
-    ErrorResponse:
-      type: object
-      properties:
-        error:
-          type: string
-          description: Descripción legible del problema.
-          example: No se envió el campo schema_id.
-        detalle:
-          type: string
-          description: Información técnica adicional (solo presente en algunos casos).
-          example: Missing required field 'schema_id' in multipart/form-data body.
-    DeleteSpaceSuccessResponse:
-      type: object
-      required:
-      - space_id
-      properties:
-        space_id:
+        success:
+          type: boolean
+          description: Siempre true en una respuesta 200.
+          example: true
+        document_id:
           type: string
           format: uuid
-          description: 'Identificador del espacio eliminado, igual al de la URL. No incluye campo success: si el borrado no fue posible, la petición termina en 404 antes de devolver 200.
+          description: Documento desacoplado del espacio.
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+        previous_space_id:
+          type: string
+          format: uuid
+          description: Espacio del que se ha quitado el documento.
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+        espacio_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+          description: Siempre null tras la operación.
+          example: null
+        file_name:
+          type: string
+          description: Nombre de archivo del documento.
+          example: factura.pdf
+        version:
+          type: number
+          description: Versión actual del documento.
+          example: 1
+        message:
+          type: string
+          description: Mensaje legible de confirmación.
+          example: Documento desacoplado del espacio. Ahora está sin space_id.
+    TypedContextQuestion:
+      type: object
+      required:
+      - question
+      - format
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 400
+          description: Texto de la pregunta a responder.
+          example: ¿Cuál es la penalización exacta por cancelación anticipada?
+        format:
+          type: string
+          enum:
+          - string
+          - int
+          - boolean
+          - timestamp
+          - array
+          description: 'Tipo JSON esperado para la respuesta correspondiente. Si el dato existe pero no se puede tipar con seguridad, la API devuelve null.
 
             '
-          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+          example: string
     SpaceContextSuccessResponse:
       type: object
       required:
@@ -265,23 +490,52 @@ components:
         user_ask:
           type: array
           items:
-            type: string
-          description: Preguntas enviadas, en el mismo orden.
+            $ref: '#/components/schemas/TypedContextQuestion'
+          description: Preguntas enviadas (con su format), en el mismo orden.
           example:
-          - ¿Qué proveedor factura más en total sumando todas las facturas?
-          - ¿Hay algún contrato cuyo importe no coincida con su factura?
+          - question: ¿Qué proveedor factura más en total sumando todas las facturas?
+            format: string
+          - question: ¿Hay algún contrato cuyo importe no coincida con su factura?
+            format: boolean
         ia_response:
           type: array
-          items:
-            type:
-            - string
-            - 'null'
-          description: 'Respuestas alineadas 1:1 con user_ask. null si el dato no está en ninguno de los documentos del espacio. Cuando la respuesta procede de cruzar varios documentos, incluye una referencia breve a los archivos de origen.
+          description: 'Respuestas alineadas 1:1 con user_ask, tipadas según format o null. Si la verificación de fuente está activada en consulta a espacio de conocimiento, cada ítem es { value, source } nombrando document_id y file_name (y el cruce si aplica). Si no hay evidencia, source es requires_human_revision.
 
             '
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/ContextAnswerValue'
+            - $ref: '#/components/schemas/SourcedField'
           example:
           - Suministros Omega S.A., 48.320 € entre tres facturas (feb, mar, abr).
-          - Sí, contrato-omega.pdf indica 12.000 € y factura-omega-03.pdf cobra 13.450 €.
+          - true
+        log_id:
+          $ref: '#/components/schemas/LogId'
+    LogId:
+      type:
+      - string
+      - 'null'
+      format: uuid
+      description: 'Identificador del registro en usage_logs de esta llamada. Presente en respuestas de éxito de extracción, modo agente, document-context y space-context, y en la mayoría de errores una vez autenticada la petición. Puede omitirse si el insert del log falla.
+
+        '
+      example: 7c2e1a90-4b3d-4f8a-9e21-6d5c8b0a1f34
+    SourcedField:
+      type: object
+      required:
+      - value
+      - source
+      properties:
+        value:
+          description: 'Dato extraído o respuesta. null si no se encontró o no es determinable.
+
+            '
+        source:
+          type: string
+          description: 'Evidencia de dónde se encontró el valor. Si no hay evidencia, el valor exacto es requires_human_revision.
+
+            '
+          example: página 2, párrafo 3
     CreateSpaceSuccessResponse:
       type: object
       required:
@@ -314,6 +568,121 @@ components:
               format: date-time
               description: Fecha y hora de creación del espacio.
               example: '2026-09-05T14:32:11.482Z'
+    ContextAnswerValue:
+      description: 'Valor tipado según el format de la pregunta: string, int (entero), boolean, timestamp (string ISO preferible), array, o null si no está o no se puede tipar.
+
+        '
+      oneOf:
+      - type: string
+      - type: integer
+      - type: boolean
+      - type: array
+        items: {}
+    DeleteSpaceSuccessResponse:
+      type: object
+      required:
+      - space_id
+      properties:
+        space_id:
+          type: string
+          format: uuid
+          description: 'Identificador del espacio eliminado, igual al de la URL. No incluye campo success: si el borrado no fue posible, la petición termina en 404 antes de devolver 200.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    AddSpaceSuccessResponse:
+      type: object
+      required:
+      - success
+      - document_id
+      - space_id
+      - space_name
+      - file_name
+      - version
+      - message
+      properties:
+        success:
+          type: boolean
+          description: Siempre true en una respuesta 200.
+          example: true
+        document_id:
+          type: string
+          format: uuid
+          description: Documento asignado al espacio.
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+        space_id:
+          type: string
+          format: uuid
+          description: Espacio al que se ha añadido el documento.
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+        space_name:
+          type: string
+          description: Nombre del espacio de destino.
+          example: Proveedores 2026
+        file_name:
+          type: string
+          description: Nombre de archivo del documento.
+          example: factura.pdf
+        version:
+          type: number
+          description: Versión actual del documento.
+          example: 1
+        message:
+          type: string
+          description: Mensaje legible de confirmación.
+          example: Documento añadido al espacio de conocimiento.
+    AddSpaceRequest:
+      type: object
+      required:
+      - document_id
+      - space_id
+      properties:
+        document_id:
+          type: string
+          format: uuid
+          description: 'UUID del documento sin space_id. Debe existir y pertenecer a la cuenta de la API key.
+
+            '
+          example: d4a1e9d2-8b1c-4f3e-9a02-8b1e9f3c7a4b
+        space_id:
+          type: string
+          format: uuid
+          description: 'UUID del espacio de destino, el que devolvió POST /create-space.
+
+            '
+          example: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c
+    SpaceContextRequest:
+      type: object
+      required:
+      - questions
+      properties:
+        questions:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/TypedContextQuestion'
+          description: 'Preguntas tipadas a responder usando solo el markdown persistido de los documentos del espacio. Mismo formato y mismos límites que document-context: máximo 5 por turno, 400 caracteres por question, con format obligatorio (string | int | boolean | timestamp | array).
+
+            '
+          example:
+          - question: ¿Qué proveedor factura más en total sumando todas las facturas?
+            format: string
+          - question: ¿Hay algún contrato cuyo importe no coincida con su factura?
+            format: boolean
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Descripción legible del problema.
+          example: No se envió el campo schema_id.
+        detalle:
+          type: string
+          description: Información técnica adicional (solo presente en algunos casos).
+          example: Missing required field 'schema_id' in multipart/form-data body.
+        log_id:
+          $ref: '#/components/schemas/LogId'
   securitySchemes:
     ApiKeyAuth:
       type: apiKey
