@@ -51,117 +51,170 @@ auth:
     header: x-api-key
     fallback: api_key argument on every tool (for clients that cannot send custom headers)
     note: The same key authenticates REST, A2A and MCP. No OAuth; /.well-known/oauth-* all 404.
-tool_count: 17
+tool_count: 25
 tool_count_note: The live tools/list returned 17 tools on 2026-09-19. The docs page and llms.txt advertise
   20, the three not served being claix.spaces.create, claix.spaces.delete and claix.space_context.ask
   (documented in section 6 of the MCP page). Recorded as documented_only below rather than counted.
 tools:
 - name: claix.schemas.list
+  description: List the Claix schemas available for the authenticated account. Returns id, name, type,
+    schema_definition, is_agent_mode, and agent_definition. Call this first whenever you need a schema_id
+    before claix.extract.* or claix.agent.* tools.
   category: schemas
   rest: listSchemas
   annotations:
     readOnlyHint: true
     destructiveHint: false
     idempotentHint: true
-  description: List the Claix schemas available for the authenticated account. Returns id, name, type,
-    schema_definition, is_agent_mode, and agent_definition. Call this first whenever you need a schema_id
-    before claix.extract.* or claix.agent.* tools.
 - name: claix.schemas.create
+  description: 'Create a Claix schema (POST /api/create-schema). Requires name, type (excel-json, json-excel,
+    pdf-json, doc-json, img-json, txt-json, audio-json) and schema_definition. Optional: is_agent_mode,
+    agent_definition, resumen_agent, window_context, window_time (minutes or "infinity" for Persistent
+    Mode), source verification (default false).'
   category: schemas
   rest: createSchema
   annotations:
     readOnlyHint: false
     destructiveHint: false
     idempotentHint: false
-  description: 'Create a Claix schema (POST /api/create-schema). Requires name, type (excel-json, json-excel,
-    pdf-json, doc-json, img-json, txt-json) and schema_definition. Optional: is_agent_mode, agent_definition,
-    resumen_agent, window_context, window_time.'
 - name: claix.schemas.delete
+  description: Delete a Claix schema owned by the API key (POST /api/delete-schema). Requires schema_id.
   category: schemas
   rest: deleteSchema
   annotations:
     readOnlyHint: false
     destructiveHint: true
     idempotentHint: true
-  description: Delete a Claix schema owned by the API key (POST /api/delete-schema). Requires schema_id.
 - name: claix.extract.excel
+  description: Extract structured JSON from an Excel (.xlsx) or CSV file using a Claix excel-json schema.
+    Processes the first sheet only. Returns typed JSON matching the schema plus log_id. If source verification
+    is enabled on the schema, each field is {value, source} instead of a bare value. Use when the user
+    attaches a spreadsheet or CSV.
   category: extraction
   rest: excelToJson
-  description: Extract structured JSON from an Excel (.xlsx) or CSV file using a Claix excel-json schema.
-    Processes the first sheet only. Returns typed JSON matching the schema. Use when the user attaches
-    a spreadsheet or CSV.
 - name: claix.extract.pdf
+  description: Extract structured JSON from a PDF (text or scanned, max 15 MB) using a Claix pdf-json
+    schema. Returns a single JSON object in data[] plus log_id. If source verification is enabled on the
+    schema, each field is {value, source}. Use for invoices, contracts, forms, or reports.
   category: extraction
   rest: pdfToJson
-  description: Extract structured JSON from a PDF (text or scanned, max 15 MB) using a Claix pdf-json
-    schema. Returns a single JSON object in data[]. Use for invoices, contracts, forms, or reports.
 - name: claix.extract.doc
+  description: Extract structured JSON from a Word document (.docx, .txt, .md, .rtf; max 10 MB) using
+    a Claix doc-json schema. Returns log_id. If source verification is enabled on the schema, each field
+    is {value, source}. Legacy .doc is not supported.
   category: extraction
   rest: docToJson
-  description: Extract structured JSON from a Word document (.docx, .txt, .md, .rtf; max 10 MB) using
-    a Claix doc-json schema. Legacy .doc is not supported.
 - name: claix.extract.image
+  description: Extract structured JSON from a visible image (JPEG, PNG, WebP, HEIC/HEIF; max 15 MB) using
+    a Claix img-json schema. Returns log_id. If source verification is enabled on the schema, each field
+    is {value, source}. Use for photos of documents, tickets, or labels.
   category: extraction
   rest: imgToJson
-  description: Extract structured JSON from a visible image (JPEG, PNG, WebP, HEIC/HEIF; max 15 MB) using
-    a Claix img-json schema. Use for photos of documents, tickets, or labels.
 - name: claix.extract.text
+  description: Extract structured JSON from already processed plain text, HTML, or XML using a Claix txt-json
+    schema. Send the payload in the content field (no file). Max 300,000 characters. Returns log_id. If
+    source verification is enabled on the schema, each field is {value, source}. POST /api/txt-json.
   category: extraction
   rest: txtToJson
-  description: Extract structured JSON from already processed plain text, HTML, or XML using a Claix txt-json
-    schema. Send the payload in the content field (no file). Max 300,000 characters. POST /api/txt-json.
+- name: claix.extract.audio
+  description: Extract structured JSON from spoken audio (MP3, WAV, M4A, OGG; max 12 MB / 10 minutes)
+    using a Claix audio-json schema. Returns log_id. If source verification is enabled on the schema,
+    each field is {value, source}. Unintelligible audio returns HTTP 422. Use for calls, meetings, voice
+    notes, or dictations.
 - name: claix.convert.json_to_excel
-  category: conversion
-  rest: jsonToExcel
   description: Convert JSON to an Excel .xlsx file using a Claix json-excel schema. Provide json_data
     inline or file_base64 with a .json file. Returns base64-encoded xlsx on success.
+  category: conversion
+  rest: jsonToExcel
 - name: claix.agent.excel
+  description: Run Excel/CSV extraction plus Agent mode semantic reasoning. Requires is_agent_mode on
+    the schema. Returns data[], agent_data, and log_id. If source verification is enabled on the schema,
+    extracted fields and agent_data are {value, source}.
   category: agent-mode
   rest: agentExcelToJson
-  description: Run Excel/CSV extraction plus Agent mode semantic reasoning. Requires is_agent_mode on
-    the schema. Returns data[] and agent_data with typed answers from agent_definition.
 - name: claix.agent.pdf
+  description: Run PDF extraction plus Agent mode reasoning. Requires is_agent_mode. Returns structured
+    data[], agent_data, and log_id. If source verification is enabled on the schema, fields are {value,
+    source}.
   category: agent-mode
   rest: agentPdfToJson
-  description: Run PDF extraction plus Agent mode reasoning. Requires is_agent_mode. Returns structured
-    data[] and agent_data for business rules, booleans, or summaries defined in the schema.
 - name: claix.agent.doc
+  description: Run document extraction plus Agent mode reasoning on .docx/.txt/.md/.rtf. Requires is_agent_mode.
+    Returns data[], agent_data, and log_id. If source verification is enabled on the schema, fields are
+    {value, source}.
   category: agent-mode
   rest: agentDocToJson
-  description: Run document extraction plus Agent mode reasoning on .docx/.txt/.md/.rtf. Requires is_agent_mode.
-    Returns data[] and agent_data.
 - name: claix.agent.image
+  description: Run image extraction plus Agent mode reasoning. Requires is_agent_mode. Returns data[],
+    agent_data, and log_id from visible content. If source verification is enabled on the schema, fields
+    are {value, source}.
   category: agent-mode
   rest: agentImgToJson
-  description: Run image extraction plus Agent mode reasoning. Requires is_agent_mode. Returns data[]
-    and agent_data from visible content.
 - name: claix.agent.text
+  description: Run text/HTML/XML extraction plus Agent mode reasoning. Requires is_agent_mode. Send content
+    (no file). Returns data[], agent_data, and log_id. If source verification is enabled on the schema,
+    fields are {value, source}. POST /agent/txt-json.
   category: agent-mode
   rest: agentTxtToJson
-  description: Run text/HTML/XML extraction plus Agent mode reasoning. Requires is_agent_mode. Send content
-    (no file). Returns data[] and agent_data. POST /agent/txt-json.
+- name: claix.agent.audio
+  description: 'Run audio extraction plus Agent mode reasoning. Requires is_agent_mode. Returns data[],
+    agent_data, and log_id from spoken content. If source verification is enabled on the schema, fields
+    are {value, source}. Formats: MP3, WAV, M4A, OGG. Max 12 MB / 10 minutes.'
 - name: claix.window_context.get
-  category: context-window
-  rest: getDocument
-  description: Retrieve raw content and metadata from a persisted document (GET /window-context/{document_id}).
+  description: Retrieve raw content and metadata from a persisted document (GET /get-document/{document_id}).
     Requires document_id from an extraction with window_context. Returns success, document_id, file_name,
     schema_id, processed_at, and content. Free call.
+  category: context-window
+  rest: getDocument
 - name: claix.window_context.ask
+  description: Ask up to 5 typed questions about a persisted document (POST /document-context/{document_id}).
+    Requires document_id from an extraction with window_context. Each item is { question, format } where
+    format is string|int|boolean|timestamp|array; question max 400 characters. Returns user_ask (echoed
+    with format), typed ia_response, and log_id (null if not in the document). If source verification
+    is enabled on document queries, each ia_response item is {value, source} citing markdown evidence,
+    or source is requires_human_revision.
   category: context-window
   rest: documentContextAsk
-  description: Ask up to 5 questions about a persisted document (POST /window-context/{document_id}).
-    Requires document_id from an extraction with window_context. Each question max 400 characters. Returns
-    user_ask and ia_response (null if not in the document).
+- name: claix.spaces.create
+  description: Create a knowledge space to group persisted documents (POST /create-space). The only field
+    is name. Returns space_id, name, and created_at. Pass that space_id as the optional space_id when
+    extracting, then query the whole group with claix.space_context.ask. Free call.
+- name: claix.spaces.delete
+  description: Delete a knowledge space owned by the API key (DELETE /delete-space/{space_id}). No body
+    or query params. Returns { space_id } on success. Irreversible. Free call. 404 if the space does not
+    exist or belongs to another account.
+- name: claix.space_context.ask
+  description: 'Ask up to 5 typed questions across every document grouped in a knowledge space (POST /space-context/{space_id}).
+    Same input and output as claix.window_context.ask: questions[] of { question, format } (format: string|int|boolean|timestamp|array),
+    but the answer is built by cross-referencing all the documents in the space instead of a single one,
+    so use it to compare, add up, or reconcile data spread over several files. Requires space_id, the
+    same one passed as the optional space_id when extracting. Question max 400 characters. Returns user_ask,
+    typed ia_response, and log_id (null if the answer is in none of the documents). If source verification
+    is enabled on knowledge space queries, each ia_response item is {value, source} naming document_id
+    and file_name.'
 - name: claix.document.delete
+  description: Delete a persisted document by document_id (DELETE /delete-document/{document_id}). No
+    body or query params. Returns { document_id } on success. Irreversible. Free call. 404 if the document
+    does not exist, is foreign, or was already purged.
   category: context-window
   rest: deleteDocument
   annotations:
     readOnlyHint: false
     destructiveHint: true
     idempotentHint: true
-  description: Delete a persisted document by document_id (DELETE /delete-document/{document_id}). No
-    body or query params. Returns { document_id } on success. Irreversible. Free call. 404 if the document
-    does not exist, is foreign, or was already purged.
+- name: claix.document.replace
+  description: 'Replace the content of a persisted document with another document''s content (POST /replace-document).
+    Body: document_id (kept) and new_content_document_id (source, deleted after copy). Records a swap,
+    bumps version, and returns swap_id, version, and swaps_count. Free call.'
+- name: claix.spaces.add_document
+  description: Assign a knowledge space to a persisted document that has no space_id yet (POST /add-space).
+    Requires document_id and space_id. Fails with 400 if the document already belongs to a space — call
+    claix.spaces.remove_document first. Returns document_id, space_id, space_name, file_name, and version.
+    Free call.
+- name: claix.spaces.remove_document
+  description: Detach a persisted document from its knowledge space (DELETE /remove-document-from-space/{document_id}).
+    Sets espacio_id to null so the document becomes unassigned. Fails with 400 if it had no space. Returns
+    document_id, previous_space_id, and version. Free call.
 documented_only:
 - name: claix.spaces.create
   category: knowledge-spaces
@@ -280,3 +333,4 @@ tool_quality:
   scored: false
   note: Facts from the saved tools/list capture (mcp_tool_quality.py); recorded, not scored. Checks learned
     from Glimind's agent-readiness audit.
+tools_count: 25
