@@ -5,7 +5,7 @@
   "protocol_version": "2025-06-18",
   "server_info": {
     "name": "claix",
-    "version": "1.11.0"
+    "version": "1.13.0"
   },
   "result": {
     "tools": [
@@ -54,9 +54,61 @@
         }
       },
       {
+        "name": "claix.schemas.get",
+        "title": "Get Claix schema",
+        "description": "Get one Claix schema by schema_id (GET /api/get-schema/{schema_id}). Returns the full schema object (definition, Agent mode, Guardar Datos / window_context, source verification). Free call. 404 if missing or not owned by the API key.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 8,
+              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
+            },
+            "schema_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID del schema creado en el dashboard de Claix. Ejemplo: 550e8400-e29b-41d4-a716-446655440000. Llama a claix.schemas.list primero si no lo conoces."
+            }
+          },
+          "required": [
+            "schema_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+            },
+            "data": {
+              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message when success is false."
+            }
+          },
+          "required": [
+            "success"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
         "name": "claix.schemas.create",
         "title": "Create Claix schema",
-        "description": "Create a Claix schema (POST /api/create-schema). Requires name, type (excel-json, json-excel, pdf-json, doc-json, img-json, txt-json, audio-json) and schema_definition. Optional: is_agent_mode, agent_definition, resumen_agent, window_context, window_time (minutes or \"infinity\" for Persistent Mode), source verification (default false).",
+        "description": "Create a Claix schema (POST /api/create-schema). Requires name, type (excel-json, json-excel, pdf-json, doc-json, img-json, txt-json, audio-json) and schema_definition. Optional: is_agent_mode, agent_definition, resumen_agent, window_context (Guardar Datos: when true, JSON extractions insert a mapped row into the connected DB; needs connection + mapping rules; default false), source verification (default false).",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -105,19 +157,7 @@
             },
             "window_context": {
               "type": "boolean",
-              "description": "If true, persist document markdown for later Q&A."
-            },
-            "window_time": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string",
-                  "const": "infinity"
-                }
-              ],
-              "description": "Required if window_context is true. Duration in minutes: 5, 10, 15, 30, 45, 60, 90, 120, 180, 240, 360, 480, 720, 1440; or the string infinity (stored as 0, requires Persistent Mode)."
+              "description": "Guardar Datos / Save Data. When true, JSON extractions insert a mapped row into the connected DB (needs connection + mapping rules). Default false."
             },
             "cita_por_campo": {
               "type": "boolean",
@@ -136,6 +176,107 @@
           "readOnlyHint": false,
           "destructiveHint": false,
           "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+            },
+            "data": {
+              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message when success is false."
+            }
+          },
+          "required": [
+            "success"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "claix.schemas.update",
+        "title": "Update Claix schema",
+        "description": "Update a Claix schema (PUT /api/update-schema/{schema_id}). Same body as create: name, type, schema_definition; optional Agent mode, window_context (Guardar Datos), source verification. Replaces the full configuration. Free call.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 8,
+              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "description": "Human-readable schema name. Example: Facturas HTML."
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "excel-json",
+                "json-excel",
+                "pdf-json",
+                "doc-json",
+                "img-json",
+                "txt-json",
+                "audio-json"
+              ],
+              "description": "Schema type matching an extraction endpoint. Example: txt-json, pdf-json."
+            },
+            "schema_definition": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Output fields. Each key is a JSON property; each value is { type: \"string\"|\"integer\"|\"number\"|\"boolean\", description: \"...\" }."
+            },
+            "is_agent_mode": {
+              "type": "boolean",
+              "description": "Set true to enable Agent mode. json-excel cannot use Agent mode."
+            },
+            "agent_definition": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Required if is_agent_mode is true. Types: boolean, string, closed, integer. closed requires options[]."
+            },
+            "resumen_agent": {
+              "type": "string",
+              "maxLength": 500,
+              "description": "Optional Agent-mode instruction, max 500 characters."
+            },
+            "window_context": {
+              "type": "boolean",
+              "description": "Guardar Datos / Save Data. When true, JSON extractions insert a mapped row into the connected DB (needs connection + mapping rules). Default false."
+            },
+            "cita_por_campo": {
+              "type": "boolean",
+              "description": "Enables source verification: each extracted field (and agent_data) is returned as {value, source} instead of a bare value. Defaults to false."
+            },
+            "schema_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID del schema creado en el dashboard de Claix. Ejemplo: 550e8400-e29b-41d4-a716-446655440000. Llama a claix.schemas.list primero si no lo conoces."
+            }
+          },
+          "required": [
+            "name",
+            "type",
+            "schema_definition",
+            "schema_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
           "openWorldHint": true
         },
         "outputSchema": {
@@ -215,7 +356,7 @@
       {
         "name": "claix.extract.excel",
         "title": "Extract Excel/CSV to JSON",
-        "description": "Extract structured JSON from an Excel (.xlsx) or CSV file using a Claix excel-json schema. Processes the first sheet only. Returns typed JSON matching the schema plus log_id. If source verification is enabled on the schema, each field is {value, source} instead of a bare value. Use when the user attaches a spreadsheet or CSV.",
+        "description": "Extract structured JSON from an Excel (.xlsx) or CSV file using a Claix excel-json schema. Processes the first sheet only. Returns typed JSON matching the schema plus log_id. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, each field is {value, source} instead of a bare value. Use when the user attaches a spreadsheet or CSV.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -243,11 +384,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -287,7 +423,7 @@
       {
         "name": "claix.extract.pdf",
         "title": "Extract PDF to JSON",
-        "description": "Extract structured JSON from a PDF (text or scanned, max 15 MB) using a Claix pdf-json schema. Returns a single JSON object in data[] plus log_id. If source verification is enabled on the schema, each field is {value, source}. Use for invoices, contracts, forms, or reports.",
+        "description": "Extract structured JSON from a PDF (text or scanned, max 15 MB) using a Claix pdf-json schema. Returns a single JSON object in data[] plus log_id. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, each field is {value, source}. Use for invoices, contracts, forms, or reports.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -315,11 +451,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -359,7 +490,7 @@
       {
         "name": "claix.extract.doc",
         "title": "Extract document to JSON",
-        "description": "Extract structured JSON from a Word document (.docx, .txt, .md, .rtf; max 10 MB) using a Claix doc-json schema. Returns log_id. If source verification is enabled on the schema, each field is {value, source}. Legacy .doc is not supported.",
+        "description": "Extract structured JSON from a Word document (.docx, .txt, .md, .rtf; max 10 MB) using a Claix doc-json schema. Returns log_id. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, each field is {value, source}. Legacy .doc is not supported.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -387,11 +518,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -431,7 +557,7 @@
       {
         "name": "claix.extract.image",
         "title": "Extract image to JSON",
-        "description": "Extract structured JSON from a visible image (JPEG, PNG, WebP, HEIC/HEIF; max 15 MB) using a Claix img-json schema. Returns log_id. If source verification is enabled on the schema, each field is {value, source}. Use for photos of documents, tickets, or labels.",
+        "description": "Extract structured JSON from a visible image (JPEG, PNG, WebP, HEIC/HEIF; max 15 MB) using a Claix img-json schema. Returns log_id. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, each field is {value, source}. Use for photos of documents, tickets, or labels.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -459,11 +585,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -503,7 +624,7 @@
       {
         "name": "claix.extract.text",
         "title": "Extract text/HTML/XML to JSON",
-        "description": "Extract structured JSON from already processed plain text, HTML, or XML using a Claix txt-json schema. Send the payload in the content field (no file). Max 300,000 characters. Returns log_id. If source verification is enabled on the schema, each field is {value, source}. POST /api/txt-json.",
+        "description": "Extract structured JSON from already processed plain text, HTML, or XML using a Claix txt-json schema. Send the payload in the content field (no file). Max 300,000 characters. Returns log_id. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, each field is {value, source}. POST /api/txt-json.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -521,11 +642,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Plain text, HTML, or XML already processed. Do not send a file. Example: <html><body>Invoice F-1</body></html>"
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -566,7 +682,7 @@
       {
         "name": "claix.extract.audio",
         "title": "Extract audio to JSON",
-        "description": "Extract structured JSON from spoken audio (MP3, WAV, M4A, OGG; max 12 MB / 10 minutes) using a Claix audio-json schema. Returns log_id. If source verification is enabled on the schema, each field is {value, source}. Unintelligible audio returns HTTP 422. Use for calls, meetings, voice notes, or dictations.",
+        "description": "Extract structured JSON from spoken audio (MP3, WAV, M4A, OGG; max 12 MB / 10 minutes) using a Claix audio-json schema. Returns log_id. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, each field is {value, source}. Unintelligible audio returns HTTP 422. Use for calls, meetings, voice notes, or dictations.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -594,11 +710,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -708,7 +819,7 @@
       {
         "name": "claix.agent.excel",
         "title": "Agent mode Excel/CSV to JSON",
-        "description": "Run Excel/CSV extraction plus Agent mode semantic reasoning. Requires is_agent_mode on the schema. Returns data[], agent_data, and log_id. If source verification is enabled on the schema, extracted fields and agent_data are {value, source}.",
+        "description": "Run Excel/CSV extraction plus Agent mode semantic reasoning. Requires is_agent_mode on the schema. Returns data[], agent_data, and log_id. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, extracted fields and agent_data are {value, source}.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -736,11 +847,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -780,7 +886,7 @@
       {
         "name": "claix.agent.pdf",
         "title": "Agent mode PDF to JSON",
-        "description": "Run PDF extraction plus Agent mode reasoning. Requires is_agent_mode. Returns structured data[], agent_data, and log_id. If source verification is enabled on the schema, fields are {value, source}.",
+        "description": "Run PDF extraction plus Agent mode reasoning. Requires is_agent_mode. Returns structured data[], agent_data, and log_id. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, fields are {value, source}.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -808,11 +914,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -852,7 +953,7 @@
       {
         "name": "claix.agent.doc",
         "title": "Agent mode document to JSON",
-        "description": "Run document extraction plus Agent mode reasoning on .docx/.txt/.md/.rtf. Requires is_agent_mode. Returns data[], agent_data, and log_id. If source verification is enabled on the schema, fields are {value, source}.",
+        "description": "Run document extraction plus Agent mode reasoning on .docx/.txt/.md/.rtf. Requires is_agent_mode. Returns data[], agent_data, and log_id. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, fields are {value, source}.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -880,11 +981,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -924,7 +1020,7 @@
       {
         "name": "claix.agent.image",
         "title": "Agent mode image to JSON",
-        "description": "Run image extraction plus Agent mode reasoning. Requires is_agent_mode. Returns data[], agent_data, and log_id from visible content. If source verification is enabled on the schema, fields are {value, source}.",
+        "description": "Run image extraction plus Agent mode reasoning. Requires is_agent_mode. Returns data[], agent_data, and log_id from visible content. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, fields are {value, source}.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -952,11 +1048,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -996,7 +1087,7 @@
       {
         "name": "claix.agent.text",
         "title": "Agent mode text/HTML/XML to JSON",
-        "description": "Run text/HTML/XML extraction plus Agent mode reasoning. Requires is_agent_mode. Send content (no file). Returns data[], agent_data, and log_id. If source verification is enabled on the schema, fields are {value, source}. POST /agent/txt-json.",
+        "description": "Run text/HTML/XML extraction plus Agent mode reasoning. Requires is_agent_mode. Send content (no file). Returns data[], agent_data, and log_id. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, fields are {value, source}. POST /agent/txt-json.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -1014,11 +1105,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Plain text, HTML, or XML already processed. Do not send a file. Example: <html><body>Invoice F-1</body></html>"
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -1059,7 +1145,7 @@
       {
         "name": "claix.agent.audio",
         "title": "Agent mode audio to JSON",
-        "description": "Run audio extraction plus Agent mode reasoning. Requires is_agent_mode. Returns data[], agent_data, and log_id from spoken content. If source verification is enabled on the schema, fields are {value, source}. Formats: MP3, WAV, M4A, OGG. Max 12 MB / 10 minutes.",
+        "description": "Run audio extraction plus Agent mode reasoning. Requires is_agent_mode. Returns data[], agent_data, and log_id from spoken content. If the schema has Guardar Datos (window_context), the response may include row_id. No space_id. If source verification is enabled on the schema, fields are {value, source}. Formats: MP3, WAV, M4A, OGG. Max 12 MB / 10 minutes.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -1087,11 +1173,6 @@
               "type": "string",
               "minLength": 1,
               "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "Opcional. UUID del espacio de conocimiento donde agrupar el documento guardado. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c. Debe pertenecer a la misma cuenta de la API key. Solo tiene efecto si el schema tiene la ventana de contexto activada, que es cuando el documento se guarda. Después puedes preguntar a todo el espacio con claix.space_context.ask."
             }
           },
           "required": [
@@ -1129,9 +1210,9 @@
         }
       },
       {
-        "name": "claix.window_context.get",
-        "title": "Get persisted document content",
-        "description": "Retrieve raw content and metadata from a persisted document (GET /get-document/{document_id}). Requires document_id from an extraction with window_context. Returns success, document_id, file_name, schema_id, processed_at, and content. Free call.",
+        "name": "claix.markdown.excel",
+        "title": "Excel/CSV to Markdown",
+        "description": "Convert Excel/CSV to Markdown (POST /api/excel-markdown). No schema_id. Optional save=true inserts into the connected DB using Markdown rules and may return row_id; omit/false returns markdown only.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -1140,14 +1221,270 @@
               "minLength": 8,
               "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
             },
-            "document_id": {
+            "file_base64": {
               "type": "string",
-              "format": "uuid",
-              "description": "UUID del documento persistido (document_id de una extracción con window_context). Ejemplo: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f."
+              "minLength": 1,
+              "description": "Archivo codificado en Base64. Acepta data URLs (data:application/pdf;base64,...) o Base64 puro. Ejemplo de uso: adjunta el PDF/imagen del chat como Base64 antes de llamar a extract_*."
+            },
+            "file_path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "URL HTTPS pública del archivo a procesar. Ejemplo: https://cdn.example.com/factura.pdf. No uses rutas locales del PC del usuario."
+            },
+            "filename": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
+            },
+            "save": {
+              "type": "boolean",
+              "description": "When true, insert into the connected DB using Markdown rules and may return row_id. Omit or false: return markdown only."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+            },
+            "data": {
+              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message when success is false."
             }
           },
           "required": [
-            "document_id"
+            "success"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "claix.markdown.pdf",
+        "title": "PDF to Markdown",
+        "description": "Convert PDF to Markdown (POST /api/pdf-markdown). No schema_id. Optional save=true inserts into the connected DB using Markdown rules and may return row_id; omit/false returns markdown only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 8,
+              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
+            },
+            "file_base64": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Archivo codificado en Base64. Acepta data URLs (data:application/pdf;base64,...) o Base64 puro. Ejemplo de uso: adjunta el PDF/imagen del chat como Base64 antes de llamar a extract_*."
+            },
+            "file_path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "URL HTTPS pública del archivo a procesar. Ejemplo: https://cdn.example.com/factura.pdf. No uses rutas locales del PC del usuario."
+            },
+            "filename": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
+            },
+            "save": {
+              "type": "boolean",
+              "description": "When true, insert into the connected DB using Markdown rules and may return row_id. Omit or false: return markdown only."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+            },
+            "data": {
+              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message when success is false."
+            }
+          },
+          "required": [
+            "success"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "claix.markdown.doc",
+        "title": "Document to Markdown",
+        "description": "Convert Word/text document to Markdown (POST /api/doc-markdown). No schema_id. Optional save=true inserts into the connected DB using Markdown rules and may return row_id; omit/false returns markdown only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 8,
+              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
+            },
+            "file_base64": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Archivo codificado en Base64. Acepta data URLs (data:application/pdf;base64,...) o Base64 puro. Ejemplo de uso: adjunta el PDF/imagen del chat como Base64 antes de llamar a extract_*."
+            },
+            "file_path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "URL HTTPS pública del archivo a procesar. Ejemplo: https://cdn.example.com/factura.pdf. No uses rutas locales del PC del usuario."
+            },
+            "filename": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
+            },
+            "save": {
+              "type": "boolean",
+              "description": "When true, insert into the connected DB using Markdown rules and may return row_id. Omit or false: return markdown only."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+            },
+            "data": {
+              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message when success is false."
+            }
+          },
+          "required": [
+            "success"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "claix.markdown.image",
+        "title": "Image to Markdown",
+        "description": "Convert image to Markdown (POST /api/img-markdown). No schema_id. Optional save=true inserts into the connected DB using Markdown rules and may return row_id; omit/false returns markdown only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 8,
+              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
+            },
+            "file_base64": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Archivo codificado en Base64. Acepta data URLs (data:application/pdf;base64,...) o Base64 puro. Ejemplo de uso: adjunta el PDF/imagen del chat como Base64 antes de llamar a extract_*."
+            },
+            "file_path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "URL HTTPS pública del archivo a procesar. Ejemplo: https://cdn.example.com/factura.pdf. No uses rutas locales del PC del usuario."
+            },
+            "filename": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
+            },
+            "save": {
+              "type": "boolean",
+              "description": "When true, insert into the connected DB using Markdown rules and may return row_id. Omit or false: return markdown only."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+            },
+            "data": {
+              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message when success is false."
+            }
+          },
+          "required": [
+            "success"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "claix.markdown.text",
+        "title": "Text/HTML/XML to Markdown",
+        "description": "Convert plain text/HTML/XML to Markdown (POST /api/txt-markdown). content field, no file, no schema_id. Optional save=true inserts into the connected DB using Markdown rules and may return row_id; omit/false returns markdown only.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 8,
+              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
+            },
+            "content": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Plain text, HTML, or XML to convert to Markdown. Do not send a file."
+            },
+            "save": {
+              "type": "boolean",
+              "description": "When true, insert into the connected DB using Markdown rules and may return row_id. Omit or false: return markdown only."
+            }
+          },
+          "required": [
+            "content"
           ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"
@@ -1181,9 +1518,9 @@
         }
       },
       {
-        "name": "claix.window_context.ask",
-        "title": "Ask a persisted document (context window)",
-        "description": "Ask up to 5 typed questions about a persisted document (POST /document-context/{document_id}). Requires document_id from an extraction with window_context. Each item is { question, format } where format is string|int|boolean|timestamp|array; question max 400 characters. Returns user_ask (echoed with format), typed ia_response, and log_id (null if not in the document). If source verification is enabled on document queries, each ia_response item is {value, source} citing markdown evidence, or source is requires_human_revision.",
+        "name": "claix.markdown.audio",
+        "title": "Audio to Markdown",
+        "description": "Convert spoken audio to Markdown (POST /api/audio-markdown). No schema_id. Optional save=true inserts into the connected DB using Markdown rules and may return row_id; omit/false returns markdown only.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -1192,10 +1529,68 @@
               "minLength": 8,
               "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
             },
-            "document_id": {
+            "file_base64": {
               "type": "string",
-              "format": "uuid",
-              "description": "UUID del documento persistido (document_id de una extracción con window_context). Ejemplo: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f."
+              "minLength": 1,
+              "description": "Archivo codificado en Base64. Acepta data URLs (data:application/pdf;base64,...) o Base64 puro. Ejemplo de uso: adjunta el PDF/imagen del chat como Base64 antes de llamar a extract_*."
+            },
+            "file_path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "URL HTTPS pública del archivo a procesar. Ejemplo: https://cdn.example.com/factura.pdf. No uses rutas locales del PC del usuario."
+            },
+            "filename": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
+            },
+            "save": {
+              "type": "boolean",
+              "description": "When true, insert into the connected DB using Markdown rules and may return row_id. Omit or false: return markdown only."
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+            },
+            "data": {
+              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message when success is false."
+            }
+          },
+          "required": [
+            "success"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "claix.multi_document.ask",
+        "title": "Ask across multiple documents",
+        "description": "Ask up to 5 typed questions across up to 10 uploaded documents (POST /multi-document). Multipart: repeat field file for each document; questions as a JSON string of { question, format } (format: string|int|boolean|timestamp|array). Optional window_context, window_time, space_id match OpenAPI MultiDocumentRequest. Returns user_ask, ia_response, documents_processed, log_id.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 8,
+              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
             },
             "questions": {
               "type": "array",
@@ -1206,7 +1601,7 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 400,
-                    "description": "Question text to answer from the persisted markdown only."
+                    "description": "Question text answered from the uploaded documents only."
                   },
                   "format": {
                     "type": "string",
@@ -1225,15 +1620,146 @@
                   "format"
                 ],
                 "additionalProperties": false,
-                "description": "Typed question. Example: {\"question\":\"¿Cuál es la penalización por cancelación anticipada?\",\"format\":\"string\"}"
+                "description": "Typed question. Example: {\"question\":\"¿Cuál es el importe total?\",\"format\":\"int\"}"
               },
               "minItems": 1,
               "maxItems": 5,
-              "description": "Questions as objects { question, format }. Max 5 per call, 400 characters per question. format ∈ string|int|boolean|timestamp|array. Example: [{\"question\":\"¿Cuál es el importe total?\",\"format\":\"int\"}]"
+              "description": "Questions as objects { question, format }. Max 5 per call, 400 characters per question. format ∈ string|int|boolean|timestamp|array."
+            },
+            "files": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "file_base64": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Archivo codificado en Base64. Acepta data URLs (data:application/pdf;base64,...) o Base64 puro. Ejemplo de uso: adjunta el PDF/imagen del chat como Base64 antes de llamar a extract_*."
+                  },
+                  "file_path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "URL HTTPS pública del archivo a procesar. Ejemplo: https://cdn.example.com/factura.pdf. No uses rutas locales del PC del usuario."
+                  },
+                  "filename": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Nombre original del archivo con extensión. Ejemplo: factura-2026-03.pdf. Ayuda a inferir el MIME cuando envías file_base64."
+                  }
+                },
+                "additionalProperties": false,
+                "description": "One uploaded document. Provide file_base64 or file_path; optional filename."
+              },
+              "minItems": 1,
+              "maxItems": 10,
+              "description": "Up to 10 documents. Each is sent as multipart field file."
+            },
+            "window_context": {
+              "type": "boolean",
+              "description": "Optional OpenAPI MultiDocumentRequest flag: when true, converted documents may be retained."
+            },
+            "window_time": {
+              "type": [
+                "number",
+                "string"
+              ],
+              "description": "Required by API if window_context is true. Minutes or \"infinity\"."
+            },
+            "space_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Optional OpenAPI MultiDocumentRequest space_id (only when window_context is true)."
             }
           },
           "required": [
-            "document_id",
+            "questions",
+            "files"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+            },
+            "data": {
+              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message when success is false."
+            }
+          },
+          "required": [
+            "success"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "claix.retrieve.ask",
+        "title": "Ask a Retrieve agent",
+        "description": "Ask a Retrieve agent (POST /retrieve/{agent_name}). Body { questions: [{ question, format? }] }. format is required only for razonada agents; formats: string|int|boolean|timestamp|timestamptz|date|json|array:string|array:int. agent_name is the slug or display name.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 8,
+              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
+            },
+            "agent_name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Agent slug or display name used in /retrieve/{agent_name}."
+            },
+            "questions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Natural-language question."
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "string",
+                      "int",
+                      "boolean",
+                      "timestamp",
+                      "timestamptz",
+                      "date",
+                      "json",
+                      "array:string",
+                      "array:int"
+                    ],
+                    "description": "Required only for razonada agents. Formats: string|int|boolean|timestamp|timestamptz|date|json|array:string|array:int."
+                  }
+                },
+                "required": [
+                  "question"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "description": "Questions for the agent. format optional unless response_mode is razonada."
+            }
+          },
+          "required": [
+            "agent_name",
             "questions"
           ],
           "additionalProperties": false,
@@ -1268,9 +1794,9 @@
         }
       },
       {
-        "name": "claix.spaces.create",
-        "title": "Create a knowledge space",
-        "description": "Create a knowledge space to group persisted documents (POST /create-space). The only field is name. Returns space_id, name, and created_at. Pass that space_id as the optional space_id when extracting, then query the whole group with claix.space_context.ask. Free call.",
+        "name": "claix.routes.create",
+        "title": "Create a Retrieve route",
+        "description": "Create a Retrieve route (POST /routes). Body: { name, description, rules, tables: [{ name, columns: string[] }] }.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -1282,268 +1808,60 @@
             "name": {
               "type": "string",
               "minLength": 1,
-              "maxLength": 200,
-              "description": "Nombre del espacio de conocimiento. Único campo de entrada, máximo 200 caracteres. Ejemplo: \"Proveedores 2026\"."
-            }
-          },
-          "required": [
-            "name"
-          ],
-          "additionalProperties": false,
-          "$schema": "http://json-schema.org/draft-07/schema#"
-        },
-        "annotations": {
-          "readOnlyHint": false,
-          "destructiveHint": false,
-          "idempotentHint": false,
-          "openWorldHint": true
-        },
-        "outputSchema": {
-          "type": "object",
-          "properties": {
-            "success": {
-              "type": "boolean",
-              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+              "description": "Route display name."
             },
-            "data": {
-              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
-            },
-            "error": {
+            "description": {
               "type": "string",
-              "description": "Human-readable error message when success is false."
-            }
-          },
-          "required": [
-            "success"
-          ],
-          "additionalProperties": false,
-          "$schema": "http://json-schema.org/draft-07/schema#"
-        }
-      },
-      {
-        "name": "claix.spaces.delete",
-        "title": "Delete a knowledge space",
-        "description": "Delete a knowledge space owned by the API key (DELETE /delete-space/{space_id}). No body or query params. Returns { space_id } on success. Irreversible. Free call. 404 if the space does not exist or belongs to another account.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "api_key": {
-              "type": "string",
-              "minLength": 8,
-              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
+              "minLength": 1,
+              "description": "What this route is for."
             },
-            "space_id": {
+            "rules": {
               "type": "string",
-              "format": "uuid",
-              "description": "UUID del espacio de conocimiento. Es el mismo valor que se envía como space_id opcional al extraer para agrupar documentos, y el que devuelve claix.spaces.create. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c."
-            }
-          },
-          "required": [
-            "space_id"
-          ],
-          "additionalProperties": false,
-          "$schema": "http://json-schema.org/draft-07/schema#"
-        },
-        "annotations": {
-          "readOnlyHint": false,
-          "destructiveHint": true,
-          "idempotentHint": true,
-          "openWorldHint": true
-        },
-        "outputSchema": {
-          "type": "object",
-          "properties": {
-            "success": {
-              "type": "boolean",
-              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+              "minLength": 1,
+              "description": "Natural-language rules for the route."
             },
-            "data": {
-              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
-            },
-            "error": {
-              "type": "string",
-              "description": "Human-readable error message when success is false."
-            }
-          },
-          "required": [
-            "success"
-          ],
-          "additionalProperties": false,
-          "$schema": "http://json-schema.org/draft-07/schema#"
-        }
-      },
-      {
-        "name": "claix.space_context.ask",
-        "title": "Ask a knowledge space (cross-document context)",
-        "description": "Ask up to 5 typed questions across every document grouped in a knowledge space (POST /space-context/{space_id}). Same input and output as claix.window_context.ask: questions[] of { question, format } (format: string|int|boolean|timestamp|array), but the answer is built by cross-referencing all the documents in the space instead of a single one, so use it to compare, add up, or reconcile data spread over several files. Requires space_id, the same one passed as the optional space_id when extracting. Question max 400 characters. Returns user_ask, typed ia_response, and log_id (null if the answer is in none of the documents). If source verification is enabled on knowledge space queries, each ia_response item is {value, source} naming document_id and file_name.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "api_key": {
-              "type": "string",
-              "minLength": 8,
-              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
-            },
-            "space_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "UUID del espacio de conocimiento. Es el mismo valor que se envía como space_id opcional al extraer para agrupar documentos, y el que devuelve claix.spaces.create. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c."
-            },
-            "questions": {
+            "tables": {
               "type": "array",
               "items": {
                 "type": "object",
                 "properties": {
-                  "question": {
+                  "name": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 400,
-                    "description": "Question text to answer from the persisted markdown only."
+                    "description": "Table name from the published Data Map."
                   },
-                  "format": {
-                    "type": "string",
-                    "enum": [
-                      "string",
-                      "int",
-                      "boolean",
-                      "timestamp",
-                      "array"
-                    ],
-                    "description": "Expected JSON type for the matching ia_response item: string, int, boolean, timestamp, or array."
+                  "columns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1,
+                    "description": "Column names selected for this table."
                   }
                 },
                 "required": [
-                  "question",
-                  "format"
+                  "name",
+                  "columns"
                 ],
-                "additionalProperties": false,
-                "description": "Typed question. Example: {\"question\":\"¿Cuál es la penalización por cancelación anticipada?\",\"format\":\"string\"}"
+                "additionalProperties": false
               },
               "minItems": 1,
-              "maxItems": 5,
-              "description": "Questions as objects { question, format }. Max 5 per call, 400 characters per question. format ∈ string|int|boolean|timestamp|array. Example: [{\"question\":\"¿Cuál es el importe total?\",\"format\":\"int\"}]"
+              "description": "Tables and columns from the active Data Map."
             }
           },
           "required": [
-            "space_id",
-            "questions"
+            "name",
+            "description",
+            "rules",
+            "tables"
           ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"
         },
         "annotations": {
-          "readOnlyHint": true,
+          "readOnlyHint": false,
           "destructiveHint": false,
-          "idempotentHint": true,
-          "openWorldHint": true
-        },
-        "outputSchema": {
-          "type": "object",
-          "properties": {
-            "success": {
-              "type": "boolean",
-              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
-            },
-            "data": {
-              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
-            },
-            "error": {
-              "type": "string",
-              "description": "Human-readable error message when success is false."
-            }
-          },
-          "required": [
-            "success"
-          ],
-          "additionalProperties": false,
-          "$schema": "http://json-schema.org/draft-07/schema#"
-        }
-      },
-      {
-        "name": "claix.document.delete",
-        "title": "Delete a persisted document",
-        "description": "Delete a persisted document by document_id (DELETE /delete-document/{document_id}). No body or query params. Returns { document_id } on success. Irreversible. Free call. 404 if the document does not exist, is foreign, or was already purged.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "api_key": {
-              "type": "string",
-              "minLength": 8,
-              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
-            },
-            "document_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "UUID del documento persistido (document_id de una extracción con window_context). Ejemplo: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f."
-            }
-          },
-          "required": [
-            "document_id"
-          ],
-          "additionalProperties": false,
-          "$schema": "http://json-schema.org/draft-07/schema#"
-        },
-        "annotations": {
-          "readOnlyHint": false,
-          "destructiveHint": true,
-          "idempotentHint": true,
-          "openWorldHint": true
-        },
-        "outputSchema": {
-          "type": "object",
-          "properties": {
-            "success": {
-              "type": "boolean",
-              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
-            },
-            "data": {
-              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
-            },
-            "error": {
-              "type": "string",
-              "description": "Human-readable error message when success is false."
-            }
-          },
-          "required": [
-            "success"
-          ],
-          "additionalProperties": false,
-          "$schema": "http://json-schema.org/draft-07/schema#"
-        }
-      },
-      {
-        "name": "claix.document.replace",
-        "title": "Replace a document's content",
-        "description": "Replace the content of a persisted document with another document's content (POST /replace-document). Body: document_id (kept) and new_content_document_id (source, deleted after copy). Records a swap, bumps version, and returns swap_id, version, and swaps_count. Free call.",
-        "inputSchema": {
-          "type": "object",
-          "properties": {
-            "api_key": {
-              "type": "string",
-              "minLength": 8,
-              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
-            },
-            "document_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "UUID del documento persistido (document_id de una extracción con window_context). Ejemplo: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f."
-            },
-            "new_content_document_id": {
-              "type": "string",
-              "format": "uuid",
-              "description": "UUID of the source document whose file_name and markdown_content will be copied onto document_id. Deleted after a successful replace. Example: a1b2c3d4-e5f6-7890-abcd-ef1234567890."
-            }
-          },
-          "required": [
-            "document_id",
-            "new_content_document_id"
-          ],
-          "additionalProperties": false,
-          "$schema": "http://json-schema.org/draft-07/schema#"
-        },
-        "annotations": {
-          "readOnlyHint": false,
-          "destructiveHint": true,
           "idempotentHint": false,
           "openWorldHint": true
         },
@@ -1570,9 +1888,9 @@
         }
       },
       {
-        "name": "claix.spaces.add_document",
-        "title": "Add a document to a knowledge space",
-        "description": "Assign a knowledge space to a persisted document that has no space_id yet (POST /add-space). Requires document_id and space_id. Fails with 400 if the document already belongs to a space — call claix.spaces.remove_document first. Returns document_id, space_id, space_name, file_name, and version. Free call.",
+        "name": "claix.routes.edit",
+        "title": "Edit a Retrieve route",
+        "description": "Edit a Retrieve route (PUT /routes/edit/{route_id}). Same body as create plus route_id path param.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -1581,20 +1899,62 @@
               "minLength": 8,
               "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
             },
-            "document_id": {
+            "route_id": {
               "type": "string",
               "format": "uuid",
-              "description": "UUID del documento persistido (document_id de una extracción con window_context). Ejemplo: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f."
+              "description": "UUID of the route to edit or delete."
             },
-            "space_id": {
+            "name": {
               "type": "string",
-              "format": "uuid",
-              "description": "UUID del espacio de conocimiento. Es el mismo valor que se envía como space_id opcional al extraer para agrupar documentos, y el que devuelve claix.spaces.create. Ejemplo: 5b9e2c14-7d3a-4f8b-9e1c-6a0d4b8f2e7c."
+              "minLength": 1,
+              "description": "Route display name."
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "description": "What this route is for."
+            },
+            "rules": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Natural-language rules for the route."
+            },
+            "tables": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Table name from the published Data Map."
+                  },
+                  "columns": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "minItems": 1,
+                    "description": "Column names selected for this table."
+                  }
+                },
+                "required": [
+                  "name",
+                  "columns"
+                ],
+                "additionalProperties": false
+              },
+              "minItems": 1,
+              "description": "Tables and columns from the active Data Map."
             }
           },
           "required": [
-            "document_id",
-            "space_id"
+            "route_id",
+            "name",
+            "description",
+            "rules",
+            "tables"
           ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"
@@ -1628,9 +1988,9 @@
         }
       },
       {
-        "name": "claix.spaces.remove_document",
-        "title": "Remove a document from a knowledge space",
-        "description": "Detach a persisted document from its knowledge space (DELETE /remove-document-from-space/{document_id}). Sets espacio_id to null so the document becomes unassigned. Fails with 400 if it had no space. Returns document_id, previous_space_id, and version. Free call.",
+        "name": "claix.routes.delete",
+        "title": "Delete a Retrieve route",
+        "description": "Delete a Retrieve route (POST /routes/delete/{route_id}). Requires route_id.",
         "inputSchema": {
           "type": "object",
           "properties": {
@@ -1639,14 +1999,261 @@
               "minLength": 8,
               "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
             },
-            "document_id": {
+            "route_id": {
               "type": "string",
               "format": "uuid",
-              "description": "UUID del documento persistido (document_id de una extracción con window_context). Ejemplo: 3c7a9f21-4b8e-4d1a-9c6f-2e0d8a5b7c4f."
+              "description": "UUID of the route to edit or delete."
             }
           },
           "required": [
-            "document_id"
+            "route_id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+            },
+            "data": {
+              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message when success is false."
+            }
+          },
+          "required": [
+            "success"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "claix.agents.create",
+        "title": "Create a Retrieve agent",
+        "description": "Create a Retrieve agent (POST /agents). Body: { name, slug, description, prompt, routes: uuid[], response_mode: \"bruto\"|\"razonada\" }.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 8,
+              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Agent display name."
+            },
+            "slug": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 20,
+              "description": "URL slug (a-z, 0-9) used in /retrieve/{slug}."
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "description": "What this agent answers."
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Business prompt / instructions for the agent."
+            },
+            "routes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "minItems": 1,
+              "description": "UUIDs of routes this agent can use."
+            },
+            "response_mode": {
+              "type": "string",
+              "enum": [
+                "bruto",
+                "razonada"
+              ],
+              "description": "bruto returns rows; razonada returns typed values (format required on questions)."
+            }
+          },
+          "required": [
+            "name",
+            "slug",
+            "description",
+            "prompt",
+            "routes",
+            "response_mode"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+            },
+            "data": {
+              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message when success is false."
+            }
+          },
+          "required": [
+            "success"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "claix.agents.edit",
+        "title": "Edit a Retrieve agent",
+        "description": "Edit a Retrieve agent (PUT /agents/edit/{agent_id}). Same body as create plus agent_id.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 8,
+              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
+            },
+            "agent_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID of the agent to edit or pause."
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Agent display name."
+            },
+            "slug": {
+              "type": "string",
+              "minLength": 3,
+              "maxLength": 20,
+              "description": "URL slug (a-z, 0-9) used in /retrieve/{slug}."
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "description": "What this agent answers."
+            },
+            "prompt": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Business prompt / instructions for the agent."
+            },
+            "routes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "minItems": 1,
+              "description": "UUIDs of routes this agent can use."
+            },
+            "response_mode": {
+              "type": "string",
+              "enum": [
+                "bruto",
+                "razonada"
+              ],
+              "description": "bruto returns rows; razonada returns typed values (format required on questions)."
+            }
+          },
+          "required": [
+            "agent_id",
+            "name",
+            "slug",
+            "description",
+            "prompt",
+            "routes",
+            "response_mode"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": true
+        },
+        "outputSchema": {
+          "type": "object",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "description": "True when Claix returned a successful response. False when isError is set on the tool result."
+            },
+            "data": {
+              "description": "JSON payload from the Claix API (extracted records, schema list, or Excel export metadata)."
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message when success is false."
+            }
+          },
+          "required": [
+            "success"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        }
+      },
+      {
+        "name": "claix.agents.pause",
+        "title": "Pause or activate a Retrieve agent",
+        "description": "Pause or activate a Retrieve agent (POST /agents/pause/{agent_id}). Body: { status: \"paused\"|\"active\" }.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "api_key": {
+              "type": "string",
+              "minLength": 8,
+              "description": "API key secreta de Claix. Ejemplo: claix_sk_abc123.... Opcional si la conexión MCP envía x-api-key en cabecera HTTP (recomendado en Smithery/Cursor)."
+            },
+            "agent_id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID of the agent to edit or pause."
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "paused",
+                "active"
+              ],
+              "description": "Set \"paused\" to disable or \"active\" to re-enable."
+            }
+          },
+          "required": [
+            "agent_id",
+            "status"
           ],
           "additionalProperties": false,
           "$schema": "http://json-schema.org/draft-07/schema#"

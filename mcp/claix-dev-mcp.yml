@@ -284,16 +284,16 @@ x-evidence:
 descriptions_source: live tools/list (authorship probe or saved capture); filled by backfill-tools-from-authorship.py
   --descriptions, 2026-09-28
 tool_quality:
-  tool_count: 25
-  tokens_total: 14365
-  tokens_per_tool_median: 662
+  tool_count: 32
+  tokens_total: 17206
+  tokens_per_tool_median: 527
   heavy_tools: []
   heavy_tool_count: 0
-  params_total: 109
+  params_total: 154
   params_undescribed: 0
   params_described_pct: 100.0
   tools_with_undescribed_params: 0
-  tools_annotated: 25
+  tools_annotated: 32
   annotated_pct: 100.0
   state_changing_unhinted: []
   tools_missing_schema: 0
@@ -302,7 +302,9 @@ tool_quality:
   duplicate_names: 0
   nonportable_names:
   - claix.schemas.list
+  - claix.schemas.get
   - claix.schemas.create
+  - claix.schemas.update
   - claix.schemas.delete
   - claix.extract.excel
   - claix.extract.pdf
@@ -317,16 +319,21 @@ tool_quality:
   - claix.agent.image
   - claix.agent.text
   - claix.agent.audio
-  - claix.window_context.get
-  - claix.window_context.ask
-  - claix.spaces.create
-  - claix.spaces.delete
-  - claix.space_context.ask
-  - claix.document.delete
-  - claix.document.replace
-  - claix.spaces.add_document
-  - claix.spaces.remove_document
-  output_schema_count: 25
+  - claix.markdown.excel
+  - claix.markdown.pdf
+  - claix.markdown.doc
+  - claix.markdown.image
+  - claix.markdown.text
+  - claix.markdown.audio
+  - claix.multi_document.ask
+  - claix.retrieve.ask
+  - claix.routes.create
+  - claix.routes.edit
+  - claix.routes.delete
+  - claix.agents.create
+  - claix.agents.edit
+  - claix.agents.pause
+  output_schema_count: 32
   token_estimate: chars/3.6 of each compact tool definition
   source: mcp/claix-dev-mcp-tools-list.json
   measured: '2026-10-20'
