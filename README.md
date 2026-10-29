@@ -64,5 +64,134 @@
 > Full detail: **[Where this data comes from](https://apievangelist.com/about/where-our-data-comes-from)**
 <!-- API-EVANGELIST-PROVENANCE:END -->
 
-Claix is a company surfaced via the API Evangelist harvest backlog (source: a2a-registry) and added to the network as a stub for full-pipeline profiling.
-- https://claix.dev/
+Claix is a Madrid-based B2B document intelligence API that converts PDFs, Excel/CSV, Word and text documents and images into strictly typed JSON against customer-defined schemas, keeps extracted documents as queryable context for AI agents (single-document and knowledge-space Q&A with deterministic nulls), and exposes one 20-operation contract three ways: REST (OpenAPI 3.0.3), a hosted MCP server at /mcp, and a native A2A agent at /a2a with a published, conformant agent card. Pay-as-you-go in euros after 100 free calls, with a free BYOK mode; official Python SDK and n8n node.
+
+**Areas:** Document Processing · Data Extraction · Document Intelligence · PDF · Excel · OCR · Structured Data · AI Agents · MCP · A2A · Spain · Company
+
+## Claix on APIs.io
+
+Everything profiled for Claix is published on APIs.io rather than in this repository. Start at the provider page — **[apis.io/providers/claix-dev/](https://apis.io/providers/claix-dev/)** — or go straight to one of the APIs or properties below.
+
+### APIs (12)
+
+- [Claix MCP Server](https://apis.io/apis/claix-dev/claix-mcp-server/) — Hosted, remote Model Context Protocol server (Streamable HTTP and legacy SSE) exposing the REST contract as dot-named tools - claix.schemas.*,…
+- [Claix A2A Agent](https://apis.io/apis/claix-dev/claix-a2a-agent/) — Native Agent-to-Agent (A2A 0.3) JSON-RPC agent at /a2a with a public agent card at /.well-known/agent-card.json declaring 20 skills, each bound by the…
+- [Claix Documento a JSON API](https://apis.io/apis/claix-dev/claix-dev-documento-a-json-api/) — Extracción de datos estructurados a partir de documentos de texto (.docx, .txt, .md, .rtf)
+- [Claix Espacios de Conocimiento API](https://apis.io/apis/claix-dev/claix-dev-espacios-de-conocimiento-api/) — Creación y borrado de espacios de conocimiento, y preguntas cruzadas sobre todos los documentos vigentes agrupados en uno de ellos. El formato de entrada y…
+- [Claix Excel a JSON API](https://apis.io/apis/claix-dev/claix-dev-excel-a-json-api/) — Conversión de archivos Excel/CSV a JSON estructurado
+- [Claix Imagen a JSON API](https://apis.io/apis/claix-dev/claix-dev-imagen-a-json-api/) — Extracción de datos estructurados a partir de imágenes (.jpeg, .jpg, .png, .webp, .heic, .heif)
+- [Claix JSON a Excel API](https://apis.io/apis/claix-dev/claix-dev-json-a-excel-api/) — Conversión de datos JSON a archivos Excel binarios
+- [Claix Modo Agente API](https://apis.io/apis/claix-dev/claix-dev-modo-agente-api/) — Extracción estructurada más razonamiento semántico en una sola llamada. Requiere schema con is_agent_mode activado y agent_definition configurada. URLs…
+- [Claix PDF a JSON API](https://apis.io/apis/claix-dev/claix-dev-pdf-a-json-api/) — Extracción de datos estructurados a partir de archivos PDF
+- [Claix Schemas API](https://apis.io/apis/claix-dev/claix-dev-schemas-api/) — Consulta de los schemas creados en la cuenta
+- [Claix Texto a JSON API](https://apis.io/apis/claix-dev/claix-dev-texto-a-json-api/) — Extracción de datos estructurados a partir de texto plano, HTML o XML ya procesado (campo content, sin archivo)
+- [Claix Ventana de Contexto API](https://apis.io/apis/claix-dev/claix-dev-ventana-de-contexto-api/) — Consulta de contenido bruto, preguntas o borrado de un documento persistido (markdown_content) identificado por document_id. URLs públicas: GET…
+
+### Published properties
+
+Each property below is a page on APIs.io carrying the machine-readable artifact and what it says.
+
+#### AsyncAPI (1)
+
+Event-driven and webhook contracts.
+
+- [Claix Dev Webhooks](https://apis.io/asyncapis/claix-dev/claix-dev-webhooks/)
+
+#### MCP servers (1)
+
+Model Context Protocol servers that expose the API to agents.
+
+- [claix](https://apis.io/servers/claix-dev/claix/)
+
+#### Overlays (1)
+
+OpenAPI overlays, including conversational phrasing for each operation.
+
+- [Claix Dev Servers Overlay](https://apis.io/overlays/claix-dev/claix-dev-servers-overlay/)
+
+#### Security (2)
+
+Authentication, trust centre, and vulnerability disclosure.
+
+- [Claix Dev Authentication](https://apis.io/security/claix-dev/claix-dev-authentication/)
+- [Claix Dev Domain Security](https://apis.io/security/claix-dev/claix-dev-domain-security/)
+
+#### Plans and pricing (1)
+
+Published plans, tiers and prices.
+
+- [Claix Dev Plans Pricing](https://apis.io/plans/claix-dev/claix-dev-plans-pricing/)
+
+#### Rate limits (1)
+
+Published request limits.
+
+- [Claix Dev Rate Limits](https://apis.io/rate-limits/claix-dev/claix-dev-rate-limits/)
+
+## Where to find this API
+
+Links to the company's own pages. This repository publishes no copy of their specifications — the canonical document is theirs and lives at the URLs below.
+
+- [Website](https://www.claix.dev/)
+- [Documentation](https://www.claix.dev/documentation/excel-to-json)
+- [Getting started](https://www.claix.dev/documentation/sdks)
+- [API reference](https://www.claix.dev/documentation/excel-to-json)
+- [Sign up](https://www.claix.dev/register)
+- [Blog](https://www.claix.dev/blog)
+- [Terms of service](https://www.claix.dev/terms)
+- [Privacy policy](https://www.claix.dev/privacy)
+
+## API Evangelist rating
+
+**Kin Score 53.4** — developing · rubric 0.25.0 · scored 2026-10-23
+
+| Facet | Score |
+|---|---|
+| Discoverability | 75.0 |
+| Contract quality | 56.5 |
+| Contract governance | 18.2 |
+| Operational transparency | 28.9 |
+| Developer ergonomics | 61.3 |
+| Access clarity | 55.3 |
+
+**Agent readiness 41.9** — agent-ready (gated down from agent-native)
+
+| Agent-readiness dimension | Result |
+|---|---|
+| Spec Presence | yes |
+| Agentic Access | — |
+| Reversibility Documented | — |
+| MCP Server | documented (partial credit) |
+| Auth Clarity | bearer (partial credit) |
+| Idempotency | — |
+| Error Semantics | verified |
+| OpenAPI Examples | partial |
+| Rate Limit Signal | documented (partial credit) |
+| Event Surface Described | yes |
+| Agent Skills | derived (partial credit) |
+| Well Known Catalog | — |
+| Consent Identity | — |
+| Agent Card | conformant |
+| Dry Run Mode | — |
+| Delegated Identity | — |
+| Protected Resource Metadata | — |
+| Dynamic Client Registration | — |
+| Agentic Commerce | — |
+| Pagination Ratio | na |
+| Operation Distinctiveness | distinct |
+
+**Regulatory alignment 36.3** — Horizontal (data, software, accessibility, platform)
+
+The rubric is published at [github.com/api-evangelist/kin-score](https://github.com/api-evangelist/kin-score). The per-check breakdown behind these numbers — which checks were earned, partial or missed — along with score history and how this provider compares to its peers, is available at [apis.io/providers/claix-dev/](https://apis.io/providers/claix-dev/).
+
+## How this profile is made
+
+API Evangelist profiles a company's public API surface the way a developer would find it: the website, developer portal and documentation, the specifications it publishes, its public repositories, and its pricing, status and changelog pages. From that it derives the properties above — contracts split per API, workflows, schemas, collections, governance rules, plans and rate limits — and scores them against the published [Kin Score rubric](https://github.com/api-evangelist/kin-score).
+
+The artifacts are published on [APIs.io](https://apis.io), not in this repository. This repository is the public record for Claix: the place to say something is wrong, missing or out of date, and to ask for a re-score or a removal.
+
+## Open an issue
+
+- **Something about this listing** — a wrong description, a missing API, a stale artifact or a question about the rating: [open an issue on this repository](https://github.com/api-evangelist/claix-dev/issues/new).
+- **A new API, or one that is not in the catalog yet** — [submit it on APIs.io](https://apis.io/add/).
+- **Anything else** — [the APIs.io inbox](https://github.com/api-search/inbox/issues/new) or [info@apievangelist.com](mailto:info@apievangelist.com).
